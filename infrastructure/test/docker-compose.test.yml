@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-api-test
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecommerce-postgres-test
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce -d ecommerce_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_test_data:
