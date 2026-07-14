@@ -9,10 +9,10 @@ permissions:
   contents: read
 
 jobs:
-  backend–validation:
+  backend-validation:
     name: Backend Validation
     runs-on: ubuntu-latest
-
+    
     defaults:
       run:
         working-directory: backend
