@@ -37,6 +37,9 @@ jobs:
       - name: Run tests
         run: npm run test
 
+     - name: Run dependency audit
+        run: npm audit --audit-level=high
+        
       - name: Build backend
         run: npm run build
 
