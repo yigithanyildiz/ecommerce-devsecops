@@ -1,0 +1,10 @@
+export declare class AppController {
+    getRoot(): {
+        name: string;
+        status: string;
+    };
+    getHealth(): {
+        status: string;
+        timestamp: string;
+    };
+}
