@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Build outputs
+dist/
+backend/dist/
+coverage/
+backend/coverage/
+
+# Environment files
+.env
+*.env
+backend/.env
+
+# Generated files
+generated/
+backend/generated/
+
+# OS / IDE
+.DS_Store
+.vscode/
