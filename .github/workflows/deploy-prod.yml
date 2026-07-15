@@ -31,11 +31,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://ecommerce:ecommerce_password@localhost:5432/ecommerce_dev?schema=public
+        
       - name: Run lint
         run: npm run lint
 
       - name: Run tests
         run: npm run test
+
+      - name: Run dependency audit
+        run: npm audit --audit-level=high
+        
 
       - name: Build backend
         run: npm run build
