@@ -1,9 +1,8 @@
-name: PR Validation
+name: Deploy TEST
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
       - develop
 
 permissions:
@@ -36,7 +35,7 @@ jobs:
         run: npx prisma generate
         env:
           DATABASE_URL: postgresql://ecommerce:ecommerce_password@localhost:5432/ecommerce_dev?schema=public
-        
+
       - name: Run lint
         run: npm run lint
 
@@ -45,7 +44,7 @@ jobs:
 
       - name: Run dependency audit
         run: npm audit --audit-level=high
-        
+
       - name: Build backend
         run: npm run build
 
@@ -53,10 +52,6 @@ jobs:
     name: Secret Scan
     runs-on: ubuntu-latest
     needs: backend-validation
-
-    permissions:
-      contents: read
-      pull-requests: read
 
     steps:
       - name: Checkout repository
@@ -68,3 +63,35 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-test:
+    name: Deploy TEST
+    runs-on: ubuntu-latest
+    needs: secret-scan
+
+    steps:
+      - name: Deploy to Azure VM TEST
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_HOST }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/ecommerce/app
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+            cd infrastructure/test
+            docker compose -f docker-compose.test.yml up -d --build
+            docker compose -f docker-compose.test.yml exec -T api npx prisma migrate deploy
+
+  health-check-test:
+    name: Health Check TEST
+    runs-on: ubuntu-latest
+    needs: deploy-test
+
+    steps:
+      - name: Check TEST health endpoint
+        run: |
+          curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/health
