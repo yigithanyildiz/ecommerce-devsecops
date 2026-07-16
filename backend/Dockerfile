@@ -19,6 +19,8 @@ COPY --from=builder /app/node_modules ./node_modules
 RUN npm prune --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 USER node
 EXPOSE 3000
