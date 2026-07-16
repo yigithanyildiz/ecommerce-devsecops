@@ -106,7 +106,7 @@ jobs:
             git pull origin main
             cd infrastructure/prod
             docker compose -f docker-compose.prod.yml up -d --build
-
+            docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy
   health-check-prod:
     name: Health Check PROD
     runs-on: ubuntu-latest
