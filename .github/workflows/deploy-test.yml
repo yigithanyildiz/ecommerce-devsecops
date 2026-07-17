@@ -87,11 +87,43 @@ jobs:
             docker compose -f docker-compose.test.yml exec -T api npx prisma migrate deploy
 
   health-check-test:
-    name: Health Check TEST
+      name: Health Check TEST
+      runs-on: ubuntu-latest
+      needs: deploy-test
+
+      steps:
+        - name: Check TEST health endpoint
+          run: |
+            curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/health
+
+  dast-zap-baseline:
+    name: DAST ZAP Baseline
     runs-on: ubuntu-latest
-    needs: deploy-test
+    needs: health-check-test
 
     steps:
-      - name: Check TEST health endpoint
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ZAP baseline scan
         run: |
-          curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/health
+          mkdir -p zap-report
+          docker run --rm --user root \
+            -v "${{ github.workspace }}/zap-report:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t https://test-api.yigithanyildiz.com \
+            -r zap-report.html \
+            -J zap-report.json \
+            -w zap-warnings.md \
+            -I
+
+          echo "Generated ZAP files:"
+          ls -la zap-report
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-report/
+          if-no-files-found: error
