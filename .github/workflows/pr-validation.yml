@@ -71,22 +71,22 @@ jobs:
   sast-semgrep:
     name: SAST Semgrep
     runs-on: ubuntu-latest
-    needs: backebnd-validation
+    needs: backend-validation
 
     steps:
-      -name: Checkout repository
-       uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      -name: Run Semgrep
-       uses: semgrep/semgrep-action@v1
-       with:
-        config: p/owasp-top-ten
-        generateSarif: 1
+      - name: Run Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten
+          generateSarif: "1"
 
-      -name: Upload Semgrep SARIF
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
+      - name: Upload Semgrep SARIF
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: semgrep-sast-report
           path: semgrep.sarif
           if-no-files-found: ignore
