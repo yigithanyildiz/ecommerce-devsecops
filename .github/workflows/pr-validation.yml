@@ -68,3 +68,30 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  sast-semgrep:
+    name: SAST Semgrep
+    runs-on: ubuntu-latest
+    needs: backend-validation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            returntocorp/semgrep:latest \
+            semgrep scan \
+            --config p/owasp-top-ten \
+            --sarif \
+            --output /src/semgrep.sarif \
+            /src
+
+      - name: Upload Semgrep SARIF
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-sast-report
+          path: semgrep.sarif
+          if-no-files-found: ignore
