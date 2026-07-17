@@ -29,42 +29,48 @@ async function main() {
 
   await prisma.product.upsert({
     where: { slug: 'wireless-headphones' },
-    update: {},
+    update: {
+      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800',
+    },
     create: {
       name: 'Wireless Headphones',
       slug: 'wireless-headphones',
       description: 'Noise cancelling wireless headphones.',
       price: '129.99',
       stock: 25,
-      imageUrl: 'https://placehold.co/800x800?text=Headphones',
+      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800',
       categoryId: electronics.id,
     },
   });
 
   await prisma.product.upsert({
     where: { slug: 'smart-watch' },
-    update: {},
+    update: {
+        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800',
+    },
     create: {
       name: 'Smart Watch',
       slug: 'smart-watch',
       description: 'Fitness and notification tracking smartwatch.',
       price: '199.99',
       stock: 12,
-      imageUrl: 'https://placehold.co/800x800?text=Smart+Watch',
+      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800',
       categoryId: electronics.id,
     },
   });
 
   await prisma.product.upsert({
     where: { slug: 'cotton-t-shirt' },
-    update: {},
+    update: {
+        imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800',
+    },
     create: {
       name: 'Cotton T-Shirt',
       slug: 'cotton-t-shirt',
       description: 'Basic cotton t-shirt.',
       price: '24.99',
       stock: 50,
-      imageUrl: 'https://placehold.co/800x800?text=T-Shirt',
+      imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800',
       categoryId: clothing.id,
     },
   });
