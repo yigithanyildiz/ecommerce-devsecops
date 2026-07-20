@@ -1,61 +1,64 @@
-//
-//  ContentView.swift
-//  ECommerceApp
-//
-//  Created by Yiğithan Yıldız on 17.07.2026.
-//
-
 import SwiftUI
-import SwiftData
+
+enum AppTab {
+    case catalog
+    case cart
+    case orders
+    case profile
+    case login
+}
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @EnvironmentObject private var sessionManager: SessionManager
+    @State private var selectedTab: AppTab = .catalog
+    @State private var ordersRefreshToken = 0
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+        TabView(selection: $selectedTab) {
+            ProductListView()
+                .tabItem {
+                    Label("Ürünler", systemImage: "shippingbox")
                 }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
+                .tag(AppTab.catalog)
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+            if sessionManager.isAuthenticated {
+                CartView(
+                    sessionManager: sessionManager,
+                    onCheckoutSuccess: {
+                        ordersRefreshToken += 1
+                        selectedTab = .orders
+                    }
+                )
+                .tabItem {
+                    Label("Sepet", systemImage: "cart")
+                }
+                .tag(AppTab.cart)
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+                OrdersView(sessionManager: sessionManager,refreshToken: ordersRefreshToken)
+                    .tabItem {
+                        Label("Siparişler", systemImage: "bag")
+                    }
+                    .tag(AppTab.orders)
+
+                ProfileView()
+                    .tabItem {
+                        Label("Profil", systemImage: "person.crop.circle")
+                    }
+                    .tag(AppTab.profile)
+            } else {
+                LoginView(sessionManager: sessionManager)
+                    .tabItem {
+                        Label("Giriş", systemImage: "person")
+                    }
+                    .tag(AppTab.login)
             }
+        }
+        .onChange(of: sessionManager.isAuthenticated) { _, isAuthenticated in
+            selectedTab = isAuthenticated ? .catalog : .login
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environmentObject(SessionManager())
 }

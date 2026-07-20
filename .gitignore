@@ -20,3 +20,14 @@ backend/generated/
 # OS / IDE
 .DS_Store
 .vscode/
+.idea/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+DerivedData/
+
+# Flutter / Dart experiments
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
