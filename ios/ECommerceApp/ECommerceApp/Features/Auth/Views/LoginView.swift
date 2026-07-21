@@ -39,10 +39,11 @@ struct LoginView: View {
                                 .frame(maxWidth: .infinity)
                         } else {
                             Text("Giriş Yap")
+                                .fontWeight(.semibold)
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .disabled(!viewModel.canSubmit)
+                    .disabled(viewModel.isLoading)
                 }
                 Section {
                     NavigationLink {

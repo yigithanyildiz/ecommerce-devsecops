@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ProductDetailView: View {
     let product: Product
-    @EnvironmentObject private var sessionManager:SessionManager
+    @EnvironmentObject private var sessionManager: SessionManager
     @State private var isAddingToCart = false
     @State private var errorMessage: String?
     @State private var showLoginAlert = false
@@ -48,15 +48,24 @@ struct ProductDetailView: View {
 
                         Spacer()
 
-                        Stepper(
-                            "\(quantity)",
-                            value: $quantity,
-                            in: 1...max(product.stock, 1)
-                        )
-                        .disabled(product.stock == 0)
+                        if product.stock > 0 {
+                            Stepper(
+                                "\(quantity)",
+                                value: $quantity,
+                                in: 1...product.stock
+                            )
+                        } else {
+                            Text("0")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if product.stock > 0 && quantity >= product.stock {
+                        Text("Maksimum stok adedine ulaştın.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     Button {
-                        Task{
+                        Task {
                             await addToCart()
                         }
                     } label: {
@@ -73,7 +82,8 @@ struct ProductDetailView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .disabled(product.stock == 0 || isAddingToCart)                }
+                    .disabled(product.stock == 0 || isAddingToCart)
+                }
                 .padding(.horizontal)
             }
         }
@@ -103,6 +113,7 @@ struct ProductDetailView: View {
         }
 
         isAddingToCart = true
+        defer { isAddingToCart = false }
         errorMessage = nil
 
         do {
@@ -111,13 +122,21 @@ struct ProductDetailView: View {
                 quantity: quantity,
                 accessToken: accessToken
             )
+            quantity = 1
             showAddedAlert = true
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
+        }
+    }
+
+    private func handle(_ error: Error) {
+        if let apiError = error as? APIError, apiError.isUnauthorized {
+            sessionManager.signOut()
         }
 
-        isAddingToCart = false
+        errorMessage = error.localizedDescription
     }
+
     private var productImage: some View {
         AsyncImage(url: product.imageUrl.flatMap(URL.init(string:))) { phase in
             switch phase {

@@ -12,20 +12,25 @@ struct ContentView: View {
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var selectedTab: AppTab = .catalog
     @State private var ordersRefreshToken = 0
+    @State private var productsRefreshToken = 0
     var body: some View {
         TabView(selection: $selectedTab) {
-            ProductListView()
-                .tabItem {
-                    Label("Ürünler", systemImage: "shippingbox")
-                }
-                .tag(AppTab.catalog)
-
             if sessionManager.isAuthenticated {
+                ProductListView(refreshToken: productsRefreshToken)
+                    .tabItem {
+                        Label("Ürünler", systemImage: "shippingbox")
+                    }
+                    .tag(AppTab.catalog)
+
                 CartView(
                     sessionManager: sessionManager,
                     onCheckoutSuccess: {
                         ordersRefreshToken += 1
+                        productsRefreshToken += 1
                         selectedTab = .orders
+                    },
+                    onBrowseProducts: {
+                        selectedTab = .catalog
                     }
                 )
                 .tabItem {
@@ -33,11 +38,17 @@ struct ContentView: View {
                 }
                 .tag(AppTab.cart)
 
-                OrdersView(sessionManager: sessionManager,refreshToken: ordersRefreshToken)
-                    .tabItem {
-                        Label("Siparişler", systemImage: "bag")
+                OrdersView(
+                    sessionManager: sessionManager,
+                    refreshToken: ordersRefreshToken,
+                    onBrowseProducts: {
+                        selectedTab = .catalog
                     }
-                    .tag(AppTab.orders)
+                )
+                .tabItem {
+                    Label("Siparişler", systemImage: "bag")
+                }
+                .tag(AppTab.orders)
 
                 ProfileView()
                     .tabItem {
@@ -50,7 +61,16 @@ struct ContentView: View {
                         Label("Giriş", systemImage: "person")
                     }
                     .tag(AppTab.login)
+
+                ProductListView(refreshToken: productsRefreshToken)
+                    .tabItem {
+                        Label("Ürünler", systemImage: "shippingbox")
+                    }
+                    .tag(AppTab.catalog)
             }
+        }
+        .onAppear {
+            selectedTab = sessionManager.isAuthenticated ? .catalog : .login
         }
         .onChange(of: sessionManager.isAuthenticated) { _, isAuthenticated in
             selectedTab = isAuthenticated ? .catalog : .login

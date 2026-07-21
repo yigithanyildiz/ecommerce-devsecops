@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject private var sessionManager: SessionManager
-
+    @State private var showSignOutConfirmation = false
     var body: some View {
         NavigationStack {
             Form {
@@ -22,13 +22,20 @@ struct ProfileView: View {
 
                 Section {
                     Button(role: .destructive) {
-                        sessionManager.signOut()
+                        showSignOutConfirmation = true
                     } label: {
-                        Text("Çıkış Yap")
+                        Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
                     }
                 }
             }
             .navigationTitle("Profil")
+            .confirmationDialog("Çıkış yapmak istiyor musun?", isPresented: $showSignOutConfirmation) {
+                Button("Çıkış Yap", role: .destructive) {
+                    sessionManager.signOut()
+                }
+
+                Button("Vazgeç", role: .cancel) {}
+            }
         }
     }
 }
