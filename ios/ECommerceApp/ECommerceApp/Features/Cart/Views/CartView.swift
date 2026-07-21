@@ -2,7 +2,6 @@ import SwiftUI
 struct CartView: View {
     @StateObject private var viewModel: CartViewModel
     @StateObject private var ordersViewModel: OrdersViewModel
-    @State private var isCheckingOut = false
     @State private var showCheckoutSuccess = false
     private let onCheckoutSuccess: () -> Void
     private let onBrowseProducts: () -> Void
@@ -101,12 +100,13 @@ struct CartView: View {
                                         .disabled(viewModel.isLoading || item.quantity >= item.product.stock)
                                     }
                                     .buttonStyle(.borderless)
+                                    if item.quantity >= item.product.stock {
+                                        Text("Stok sınırına ulaşıldı")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                if item.quantity >= item.product.stock {
-                                    Text("Stok sınırına ulaşıldı")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                                
 
                                 Spacer()
 
@@ -127,45 +127,51 @@ struct CartView: View {
                                 
                             }
                         }
-                        Section {
+                        Section("Ödeme Özeti") {
                             HStack {
-                                Text("Toplam")
-                                    .fontWeight(.semibold)
+                                Text("Ara Toplam")
 
                                 Spacer()
 
                                 Text(viewModel.totalPrice.usdCurrencyText)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack {
+                                Text("Kargo")
+
+                                Spacer()
+
+                                Text(viewModel.shippingPrice.usdCurrencyText)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack {
+                                Text("Genel Toplam")
+                                    .fontWeight(.semibold)
+
+                                Spacer()
+
+                                Text(viewModel.grandTotal.usdCurrencyText)
                                     .fontWeight(.bold)
                             }
                         }
                         Section {
-                            Button {
-                                guard !isCheckingOut else { return }
-
-                                Task {
-                                    isCheckingOut = true
-                                    defer { isCheckingOut = false }
-
-                                    await ordersViewModel.checkout()
-
-                                    if ordersViewModel.lastCreatedOrder != nil {
-                                        viewModel.clearItems()
-                                        await viewModel.loadCart()
+                            NavigationLink {
+                                CheckoutView(
+                                    cartViewModel: viewModel,
+                                    ordersViewModel: ordersViewModel,
+                                    onCheckoutSuccess: {
                                         showCheckoutSuccess = true
                                         onCheckoutSuccess()
                                     }
-                                }
+                                )
                             } label: {
-                                if isCheckingOut {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity)
-                                } else {
-                                    Text("Siparişi Tamamla")
-                                        .fontWeight(.semibold)
-                                        .frame(maxWidth: .infinity)
-                                }
+                                Text("Ödemeye Geç")
+                                    .fontWeight(.semibold)
+                                    .frame(maxWidth: .infinity)
                             }
-                            .disabled(isCheckingOut || viewModel.items.isEmpty)
+                            .disabled(viewModel.items.isEmpty)
                         }
                         
                     }

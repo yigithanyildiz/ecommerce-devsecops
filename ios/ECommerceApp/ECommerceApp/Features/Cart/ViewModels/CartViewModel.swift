@@ -21,14 +21,26 @@ final class CartViewModel: ObservableObject {
     var items: [CartItem] {
         cart?.items ?? []
     }
+    var itemCount: Int {
+        items.reduce(0) { total, item in
+            total + item.quantity
+        }
+    }
 
     var totalPrice: Double {
         items.reduce(0) { total, item in
             let price = item.product.price.currencyValue
             return total + (price * Double(item.quantity))
         }
+        
+    }
+    var shippingPrice: Double {
+        items.isEmpty ? 0 : 4.99
     }
 
+    var grandTotal: Double {
+        totalPrice + shippingPrice
+    }
     func clearItems() {
         guard let cart else { return }
 
@@ -37,7 +49,11 @@ final class CartViewModel: ObservableObject {
             userId: cart.userId,
             items: []
         )
-    }
+        NotificationCenter.default.post(
+            name: .cartDidChange,
+            object: nil,
+            userInfo: ["itemCount": 0]
+        )  }
 
     func loadCart() async {
         guard let accessToken = sessionManager.accessToken else {
@@ -73,7 +89,11 @@ final class CartViewModel: ObservableObject {
                 accessToken: accessToken
             )
             await loadCart()
-        } catch {
+            NotificationCenter.default.post(
+                name: .cartDidChange,
+                object: nil,
+                userInfo: ["itemCount": itemCount]
+            )        } catch {
             handle(error)
         }
 
@@ -101,7 +121,11 @@ final class CartViewModel: ObservableObject {
                 accessToken: accessToken
             )
             await loadCart()
-        } catch {
+            NotificationCenter.default.post(
+                name: .cartDidChange,
+                object: nil,
+                userInfo: ["itemCount": itemCount]
+            )        } catch {
             handle(error)
         }
 
@@ -123,7 +147,11 @@ final class CartViewModel: ObservableObject {
                 accessToken: accessToken
             )
             await loadCart()
-        } catch {
+            NotificationCenter.default.post(
+                name: .cartDidChange,
+                object: nil,
+                userInfo: ["itemCount": itemCount]
+            )        } catch {
             handle(error)
         }
 

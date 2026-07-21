@@ -8,19 +8,37 @@ struct ProfileView: View {
             Form {
                 if let user = sessionManager.currentUser {
                     Section {
-                        Text(user.name)
-                            .font(.headline)
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.accentColor.opacity(0.15))
+                                    .frame(width: 56, height: 56)
 
-                        Text(user.email)
-                            .foregroundStyle(.secondary)
+                                Text(user.initials)
+                                    .font(.headline)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(Color.accentColor)
+                            }
 
-                        Text(user.role)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(user.name)
+                                    .font(.headline)
+
+                                Text(user.email)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    Section("Hesap Bilgileri") {
+                        LabeledContent("Rol", value: user.roleDisplayName)
+                        LabeledContent("Kullanıcı ID", value: String(user.id.prefix(8)))
                     }
                 }
 
-                Section {
+                Section("Oturum") {
                     Button(role: .destructive) {
                         showSignOutConfirmation = true
                     } label: {
@@ -36,6 +54,32 @@ struct ProfileView: View {
 
                 Button("Vazgeç", role: .cancel) {}
             }
+        }
+    }
+}
+private extension AuthUser {
+    var initials: String {
+        let parts = name
+            .split(separator: " ")
+            .prefix(2)
+
+        let initials = parts.compactMap { $0.first }
+
+        if initials.isEmpty {
+            return String(email.prefix(1)).uppercased()
+        }
+
+        return initials.map(String.init).joined().uppercased()
+    }
+
+    var roleDisplayName: String {
+        switch role {
+        case "ADMIN":
+            return "Admin"
+        case "USER":
+            return "Müşteri"
+        default:
+            return role
         }
     }
 }
