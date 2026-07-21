@@ -35,10 +35,11 @@ struct RegisterView: View {
                             .frame(maxWidth: .infinity)
                     } else {
                         Text("Kayıt Ol")
+                            .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .disabled(!viewModel.canSubmit)
+                .disabled(viewModel.isLoading)
             }
         }
         .navigationTitle("Kayıt Ol")

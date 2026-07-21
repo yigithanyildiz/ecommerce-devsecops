@@ -2,12 +2,18 @@ import SwiftUI
 struct CartView: View {
     @StateObject private var viewModel: CartViewModel
     @StateObject private var ordersViewModel: OrdersViewModel
+    @State private var isCheckingOut = false
+    @State private var showCheckoutSuccess = false
     private let onCheckoutSuccess: () -> Void
+    private let onBrowseProducts: () -> Void
     init(
         sessionManager: SessionManager,
-        onCheckoutSuccess: @escaping () -> Void = {}
+        onCheckoutSuccess: @escaping () -> Void = {},
+        onBrowseProducts: @escaping () -> Void = {}
+
     ) {
         self.onCheckoutSuccess = onCheckoutSuccess
+        self.onBrowseProducts = onBrowseProducts
 
         _viewModel = StateObject(
             wrappedValue: CartViewModel(sessionManager: sessionManager)
@@ -23,11 +29,16 @@ struct CartView: View {
                 if viewModel.isLoading && viewModel.items.isEmpty {
                     ProgressView("Sepet yükleniyor...")
                 } else if viewModel.items.isEmpty {
-                    ContentUnavailableView(
-                        "Sepet boş",
-                        systemImage: "cart",
-                        description: Text(viewModel.errorMessage ?? "Ürün detayından sepete ürün ekleyebilirsin.")
-                    )
+                    ContentUnavailableView {
+                        Label("Sepet boş", systemImage: "cart")
+                    } description: {
+                        Text(viewModel.errorMessage ?? "Ürün detayından sepete ürün ekleyebilirsin.")
+                    } actions: {
+                        Button("Ürünlere Git") {
+                            onBrowseProducts()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 } else {
                     List {
                         if let errorMessage = viewModel.errorMessage ?? ordersViewModel.errorMessage {
@@ -91,6 +102,11 @@ struct CartView: View {
                                     }
                                     .buttonStyle(.borderless)
                                 }
+                                if item.quantity >= item.product.stock {
+                                    Text("Stok sınırına ulaşıldı")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
 
                                 Spacer()
 
@@ -124,16 +140,23 @@ struct CartView: View {
                         }
                         Section {
                             Button {
+                                guard !isCheckingOut else { return }
+
                                 Task {
+                                    isCheckingOut = true
+                                    defer { isCheckingOut = false }
+
                                     await ordersViewModel.checkout()
-                                    await viewModel.loadCart()
 
                                     if ordersViewModel.lastCreatedOrder != nil {
+                                        viewModel.clearItems()
+                                        await viewModel.loadCart()
+                                        showCheckoutSuccess = true
                                         onCheckoutSuccess()
                                     }
                                 }
                             } label: {
-                                if ordersViewModel.isLoading {
+                                if isCheckingOut {
                                     ProgressView()
                                         .frame(maxWidth: .infinity)
                                 } else {
@@ -142,7 +165,7 @@ struct CartView: View {
                                         .frame(maxWidth: .infinity)
                                 }
                             }
-                            .disabled(ordersViewModel.isLoading || viewModel.items.isEmpty)
+                            .disabled(isCheckingOut || viewModel.items.isEmpty)
                         }
                         
                     }
@@ -150,6 +173,11 @@ struct CartView: View {
                     
                 }
                 
+            }
+            .alert("Sipariş oluşturuldu", isPresented: $showCheckoutSuccess) {
+                Button("Tamam", role: .cancel) {}
+            } message: {
+                Text("Siparişini Siparişler sekmesinden takip edebilirsin.")
             }
             .navigationTitle("Sepet")
             .toolbar {
