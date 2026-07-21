@@ -4,11 +4,14 @@ struct ProductDetailView: View {
     let product: Product
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var isAddingToCart = false
+    @State private var isFavorite = false
+    @State private var isUpdatingFavorite = false 
     @State private var errorMessage: String?
     @State private var showLoginAlert = false
     @State private var showAddedAlert = false
     @State private var quantity = 1
     private let cartService: CartServicing = CartService()
+    private let favoriteService: FavoriteServicing = FavoriteService()
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -105,6 +108,62 @@ struct ProductDetailView: View {
         }
         .navigationTitle(product.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task {
+                        await toggleFavorite()
+                    }
+                } label: {
+                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                }
+                .disabled(isUpdatingFavorite)
+            }
+        }
+        .task {
+            await loadFavoriteState()
+        }
+    }
+    private func loadFavoriteState() async {
+        guard let accessToken = sessionManager.accessToken else {
+            isFavorite = false
+            return
+        }
+
+        do {
+            let favorites = try await favoriteService.fetchFavorites(accessToken: accessToken)
+            isFavorite = favorites.contains { $0.id == product.id }
+        } catch {
+            isFavorite = false
+        }
+    }
+
+    private func toggleFavorite() async {
+        guard let accessToken = sessionManager.accessToken else {
+            showLoginAlert = true
+            return
+        }
+
+        isUpdatingFavorite = true
+        defer { isUpdatingFavorite = false }
+
+        do {
+            if isFavorite {
+                try await favoriteService.removeFavorite(
+                    productId: product.id,
+                    accessToken: accessToken
+                )
+                isFavorite = false
+            } else {
+                try await favoriteService.addFavorite(
+                    productId: product.id,
+                    accessToken: accessToken
+                )
+                isFavorite = true
+            }
+        } catch {
+            handle(error)
+        }
     }
     private func addToCart() async {
         guard let accessToken = sessionManager.accessToken else {
