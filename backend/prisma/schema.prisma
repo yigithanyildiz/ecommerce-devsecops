@@ -21,6 +21,7 @@ model User {
   updatedAt    DateTime @updatedAt
   cart         Cart?
   orders       Order[]
+  favorites    Favorite[]
 }
 
 model Category {
@@ -42,6 +43,7 @@ model Product {
   imageUrl    String?
   isActive    Boolean    @default(true)
   cartItems   CartItem[]
+  favorites   Favorite[]
   categoryId  String
   category    Category   @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
@@ -70,6 +72,16 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   @@unique([cartId, productId])
+}
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
 }
 
 enum OrderStatus {
