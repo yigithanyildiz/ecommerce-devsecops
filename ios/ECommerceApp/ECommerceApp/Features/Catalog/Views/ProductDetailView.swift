@@ -122,6 +122,11 @@ struct ProductDetailView: View {
                 quantity: quantity,
                 accessToken: accessToken
             )
+            NotificationCenter.default.post(
+                name: .cartDidChange,
+                object: nil,
+                userInfo: ["itemCount": 0]
+            )
             quantity = 1
             showAddedAlert = true
         } catch {

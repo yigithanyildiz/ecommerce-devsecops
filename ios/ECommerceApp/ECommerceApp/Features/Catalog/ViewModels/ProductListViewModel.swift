@@ -1,6 +1,27 @@
 import Foundation
 import Combine
 
+enum ProductSortOption: String, CaseIterable, Identifiable {
+    case newest
+    case priceLowToHigh
+    case priceHighToLow
+    case stockHighToLow
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .newest:
+            return "Yeni"
+        case .priceLowToHigh:
+            return "Fiyat Artan"
+        case .priceHighToLow:
+            return "Fiyat Azalan"
+        case .stockHighToLow:
+            return "Stok"
+        }
+    }
+}
 @MainActor
 final class ProductListViewModel: ObservableObject{
     @Published private(set) var products: [Product] = []
@@ -8,6 +29,8 @@ final class ProductListViewModel: ObservableObject{
     @Published private(set) var errorMessage: String?
     @Published var searchText = ""
     @Published var selectedCategorySlug: String?
+    @Published var showsOnlyInStock = false
+    @Published var sortOption: ProductSortOption = .newest
     private let productService: ProductServicing
     init(productService: ProductServicing = ProductService()){
         self.productService = productService
@@ -29,7 +52,7 @@ final class ProductListViewModel: ObservableObject{
     var filteredProducts: [Product] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return products.filter { product in
+        let filtered = products.filter { product in
             let matchesSearch = query.isEmpty
                 || product.name.localizedCaseInsensitiveContains(query)
                 || product.description?.localizedCaseInsensitiveContains(query) == true
@@ -38,7 +61,26 @@ final class ProductListViewModel: ObservableObject{
             let matchesCategory = selectedCategorySlug == nil
                 || product.category?.slug == selectedCategorySlug
 
-            return matchesSearch && matchesCategory
+            let matchesStock = !showsOnlyInStock || product.stock > 0
+
+            return matchesSearch && matchesCategory && matchesStock
+        }
+
+        switch sortOption {
+        case .newest:
+            return filtered
+        case .priceLowToHigh:
+            return filtered.sorted {
+                $0.price.currencyValue < $1.price.currencyValue
+            }
+        case .priceHighToLow:
+            return filtered.sorted {
+                $0.price.currencyValue > $1.price.currencyValue
+            }
+        case .stockHighToLow:
+            return filtered.sorted {
+                $0.stock > $1.stock
+            }
         }
     }
     func loadProducts() async {

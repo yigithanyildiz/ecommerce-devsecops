@@ -12,7 +12,7 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section ("Hesap Bilgileri"){
                     TextField("E-posta", text: $viewModel.email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -24,6 +24,7 @@ struct LoginView: View {
                 if let errorMessage = viewModel.errorMessage {
                     Section {
                         Text(errorMessage)
+                            .font(.footnote)
                             .foregroundStyle(.red)
                     }
                 }
@@ -43,13 +44,15 @@ struct LoginView: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .disabled(viewModel.isLoading)
+                    .disabled(!viewModel.canSubmit)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
                 Section {
                     NavigationLink {
                         RegisterView()
                     } label: {
-                        Text("Hesap oluştur")
+                        Label("Yeni hesap oluştur", systemImage: "person.badge.plus")
                             .frame(maxWidth: .infinity)
                     }
                 }

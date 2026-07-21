@@ -6,23 +6,39 @@ struct OrderDetailView: View {
     var body: some View {
         List {
             Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Sipariş")
+                        .font(.headline)
+
+                    Text("#\(order.id.prefix(8))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 HStack {
-                    HStack {
-                        Text("Tarih")
-                        Spacer()
-                        Text(order.formattedCreatedDate)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text("Durum")
+                    Text("Tarih")
+
                     Spacer()
+
+                    Text(order.formattedCreatedDate)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Durum")
+
+                    Spacer()
+
                     OrderStatusBadgeView(status: order.status)
                 }
 
                 HStack {
                     Text("Toplam")
+
                     Spacer()
+
                     Text(order.totalAmount.usdCurrencyText)
-                        .fontWeight(.semibold)
+                        .fontWeight(.bold)
                 }
             }
 
@@ -33,7 +49,7 @@ struct OrderDetailView: View {
                             Text(item.productName)
                                 .font(.headline)
 
-                            Text("Adet: \(item.quantity)")
+                            Text("\(item.quantity) x \(item.unitPrice.usdCurrencyText)")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

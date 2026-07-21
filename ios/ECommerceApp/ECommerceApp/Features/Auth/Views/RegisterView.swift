@@ -6,7 +6,7 @@ struct RegisterView: View {
     @State private var showSuccessAlert = false
     var body: some View {
         Form {
-            Section {
+            Section ("Hesap Bilgileri"){
                 TextField("Ad Soyad", text: $viewModel.name)
 
                 TextField("E-posta", text: $viewModel.email)
@@ -20,6 +20,7 @@ struct RegisterView: View {
             if let errorMessage = viewModel.errorMessage {
                 Section {
                     Text(errorMessage)
+                        .font(.footnote)
                         .foregroundStyle(.red)
                 }
             }
@@ -39,7 +40,9 @@ struct RegisterView: View {
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .disabled(viewModel.isLoading)
+                .disabled(!viewModel.canSubmit)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
         }
         .navigationTitle("Kayıt Ol")

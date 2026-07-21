@@ -25,8 +25,7 @@ struct ProductListView: View {
                         description: Text(
                             viewModel.products.isEmpty
                                 ? "Henüz listelenecek ürün bulunamadı."
-                                : "Arama veya kategori filtresini değiştirmeyi dene."
-                        )
+                            : "Arama, kategori veya stok filtresini değiştirmeyi dene."                        )
                     )
                 } else {
                     ScrollView {
@@ -40,6 +39,7 @@ struct ProductListView: View {
                         }
 
                         categoryFilter
+                        filterControls
 
                         LazyVStack(spacing: 0) {
                             ForEach(viewModel.filteredProducts) { product in
@@ -74,11 +74,13 @@ struct ProductListView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .onChange(of: refreshToken) { _, _ in
-                        Task {
-                            await viewModel.loadProducts()
-                        }
+                    
                     }
+                 
+                    }
+            .onChange(of: refreshToken) { _, _ in
+            Task {
+                await viewModel.loadProducts()
                 }
             }
             .task {
@@ -99,6 +101,26 @@ struct ProductListView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
+    }
+    private var filterControls: some View {
+        HStack(spacing: 12) {
+            Toggle(isOn: $viewModel.showsOnlyInStock) {
+                Label("Stokta", systemImage: "checkmark.circle")
+            }
+            .toggleStyle(.button)
+
+            Spacer()
+
+            Picker("Sıralama", selection: $viewModel.sortOption) {
+                ForEach(ProductSortOption.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+        .font(.subheadline)
+        .padding(.horizontal)
+        .padding(.bottom, 8)
     }
 
     private func categoryButton(title: String, slug: String?) -> some View {
