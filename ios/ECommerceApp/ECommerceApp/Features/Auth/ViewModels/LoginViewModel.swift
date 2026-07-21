@@ -24,6 +24,11 @@ final class LoginViewModel: ObservableObject {
     }
 
     func login() async {
+        guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !password.isEmpty else {
+                errorMessage = "E-posta ve şifre alanları zorunlu."
+                return
+            }
         isLoading = true
         errorMessage = nil
 
@@ -37,9 +42,12 @@ final class LoginViewModel: ObservableObject {
                 user: response.user
             )
         } catch {
-            errorMessage = error.localizedDescription
+            if let apiError = error as? APIError, apiError.isUnauthorized {
+                errorMessage = "E-posta veya şifre hatalı."
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
-
         isLoading = false
     }
 }

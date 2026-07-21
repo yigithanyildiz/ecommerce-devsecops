@@ -29,6 +29,16 @@ final class CartViewModel: ObservableObject {
         }
     }
 
+    func clearItems() {
+        guard let cart else { return }
+
+        self.cart = Cart(
+            id: cart.id,
+            userId: cart.userId,
+            items: []
+        )
+    }
+
     func loadCart() async {
         guard let accessToken = sessionManager.accessToken else {
             errorMessage = "Sepeti görüntülemek için giriş yapmalısın."
@@ -41,7 +51,7 @@ final class CartViewModel: ObservableObject {
         do {
             cart = try await cartService.fetchCart(accessToken: accessToken)
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
@@ -64,11 +74,12 @@ final class CartViewModel: ObservableObject {
             )
             await loadCart()
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
     }
+
     func updateQuantity(item: CartItem, quantity: Int) async {
         guard let accessToken = sessionManager.accessToken else {
             errorMessage = "Sepeti güncellemek için giriş yapmalısın."
@@ -91,7 +102,7 @@ final class CartViewModel: ObservableObject {
             )
             await loadCart()
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
@@ -113,9 +124,17 @@ final class CartViewModel: ObservableObject {
             )
             await loadCart()
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
+    }
+
+    private func handle(_ error: Error) {
+        if let apiError = error as? APIError, apiError.isUnauthorized {
+            sessionManager.signOut()
+        }
+
+        errorMessage = error.localizedDescription
     }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
@@ -46,6 +46,21 @@ export class CartService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+    const existingCartItem = await this.prisma.cartItem.findUnique({
+      where: {
+        cartId_productId: {
+          cartId: cart.id,
+          productId: product.id,
+        },
+      },
+    });
+    
+    const currentQuantity = existingCartItem?.quantity ?? 0;
+    const nextQuantity = currentQuantity + addCartItemDto.quantity;
+    
+    if (nextQuantity > product.stock) {
+      throw new ConflictException('Not enough stock');
+    }
 
     return this.prisma.cartItem.upsert({
       where: {
@@ -87,7 +102,17 @@ export class CartService {
     if (!cartItem) {
       throw new NotFoundException('Cart item not found');
     }
-
+    const product = await this.prisma.product.findUnique({
+      where: { id: cartItem.productId },
+    });
+    
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    
+    if (updateCartItemDto.quantity > product.stock) {
+      throw new ConflictException('Not enough stock');
+    }
     return this.prisma.cartItem.update({
       where: { id: itemId },
       data: {

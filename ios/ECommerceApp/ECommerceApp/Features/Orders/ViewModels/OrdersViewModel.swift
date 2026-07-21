@@ -31,7 +31,7 @@ final class OrdersViewModel: ObservableObject {
         do {
             orders = try await orderService.fetchOrders(accessToken: accessToken)
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
@@ -51,9 +51,17 @@ final class OrdersViewModel: ObservableObject {
             lastCreatedOrder = try await orderService.checkout(accessToken: accessToken)
             await loadOrders()
         } catch {
-            errorMessage = error.localizedDescription
+            handle(error)
         }
 
         isLoading = false
+    }
+
+    private func handle(_ error: Error) {
+        if let apiError = error as? APIError, apiError.isUnauthorized {
+            sessionManager.signOut()
+        }
+
+        errorMessage = error.localizedDescription
     }
 }

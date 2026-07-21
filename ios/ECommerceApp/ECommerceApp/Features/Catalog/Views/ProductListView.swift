@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct ProductListView: View {
+    let refreshToken: Int
     @StateObject private var viewModel = ProductListViewModel()
+    init(refreshToken: Int = 0) {
+        self.refreshToken = refreshToken
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,6 +30,15 @@ struct ProductListView: View {
                     )
                 } else {
                     ScrollView {
+                        if let errorMessage = viewModel.errorMessage {
+                            Text(errorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                        }
+
                         categoryFilter
 
                         LazyVStack(spacing: 0) {
@@ -57,8 +70,14 @@ struct ProductListView: View {
                         Task {
                             await viewModel.loadProducts()
                         }
+                        
                     } label: {
                         Image(systemName: "arrow.clockwise")
+                    }
+                    .onChange(of: refreshToken) { _, _ in
+                        Task {
+                            await viewModel.loadProducts()
+                        }
                     }
                 }
             }

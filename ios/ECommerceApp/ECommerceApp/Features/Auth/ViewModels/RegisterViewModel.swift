@@ -21,6 +21,16 @@ final class RegisterViewModel: ObservableObject {
     }
 
     func register() async {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !password.isEmpty else {
+            errorMessage = "Ad, e-posta ve şifre alanları zorunlu."
+            return
+        }
+        guard password.count >= 6 else {
+            errorMessage = "Şifre en az 6 karakter olmalı."
+            return
+        }
         isLoading = true
         errorMessage = nil
 
@@ -32,7 +42,16 @@ final class RegisterViewModel: ObservableObject {
             )
             didRegister = true
         } catch {
-            errorMessage = error.localizedDescription
+            if let apiError = error as? APIError {
+                switch apiError {
+                case .requestFailed(409):
+                    errorMessage = "Bu e-posta adresi zaten kayıtlı."
+                default:
+                    errorMessage = apiError.localizedDescription
+                }
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
 
         isLoading = false

@@ -86,8 +86,14 @@ final class APIClient {
     }
 
     private func send<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let data: Data
+        let response: URLResponse
 
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw APIError.networkUnavailable
+        }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
