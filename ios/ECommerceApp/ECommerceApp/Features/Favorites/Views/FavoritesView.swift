@@ -1,11 +1,3 @@
-//
-//  FavoritesView.swift
-//  ECommerceApp
-//
-//  Created by Yiğithan Yıldız on 21.07.2026.
-//
-
-
 import SwiftUI
 
 struct FavoritesView: View {

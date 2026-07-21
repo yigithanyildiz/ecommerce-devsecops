@@ -2,10 +2,12 @@ import SwiftUI
 
 enum AppTab {
     case catalog
+    case favorites
     case cart
     case orders
     case profile
     case login
+    
 }
 extension Notification.Name {
     static let cartDidChange = Notification.Name("cartDidChange")
@@ -25,7 +27,16 @@ struct ContentView: View {
                         Label("Ürünler", systemImage: "shippingbox")
                     }
                     .tag(AppTab.catalog)
-
+                FavoritesView(
+                    sessionManager: sessionManager,
+                    onBrowseProducts: {
+                        selectedTab = .catalog
+                    }
+                )
+                .tabItem {
+                    Label("Favoriler", systemImage: "heart")
+                }
+                .tag(AppTab.favorites)
                 CartView(
                     sessionManager: sessionManager,
                     onCheckoutSuccess: {
