@@ -7,12 +7,16 @@ enum AppTab {
     case profile
     case login
 }
+extension Notification.Name {
+    static let cartDidChange = Notification.Name("cartDidChange")
+}
 
 struct ContentView: View {
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var selectedTab: AppTab = .catalog
     @State private var ordersRefreshToken = 0
     @State private var productsRefreshToken = 0
+    @State private var cartBadgeCount = 0
     var body: some View {
         TabView(selection: $selectedTab) {
             if sessionManager.isAuthenticated {
@@ -37,6 +41,8 @@ struct ContentView: View {
                     Label("Sepet", systemImage: "cart")
                 }
                 .tag(AppTab.cart)
+                .badge(cartBadgeCount)
+                
 
                 OrdersView(
                     sessionManager: sessionManager,
@@ -71,12 +77,41 @@ struct ContentView: View {
         }
         .onAppear {
             selectedTab = sessionManager.isAuthenticated ? .catalog : .login
+
+            Task {
+                await refreshCartBadge()
+            }
+        }        .onReceive(NotificationCenter.default.publisher(for: .cartDidChange)) { _ in
+            Task {
+                await refreshCartBadge()
+            }
         }
         .onChange(of: sessionManager.isAuthenticated) { _, isAuthenticated in
             selectedTab = isAuthenticated ? .catalog : .login
+
+            Task {
+                await refreshCartBadge()
+            }
+        }    }
+    private func refreshCartBadge() async {
+        guard sessionManager.isAuthenticated,
+              let accessToken = sessionManager.accessToken else {
+            cartBadgeCount = 0
+            return
+        }
+
+        do {
+            let cart = try await CartService().fetchCart(accessToken: accessToken)
+            cartBadgeCount = cart.items.reduce(0) { total, item in
+                total + item.quantity
+            }
+        } catch {
+            cartBadgeCount = 0
         }
     }
 }
+    
+
 
 #Preview {
     ContentView()

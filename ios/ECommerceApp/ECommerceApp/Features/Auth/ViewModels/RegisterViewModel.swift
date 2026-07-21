@@ -17,7 +17,10 @@ final class RegisterViewModel: ObservableObject {
     }
 
     var canSubmit: Bool {
-        !name.isEmpty && !email.isEmpty && !password.isEmpty && !isLoading
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !password.isEmpty
+            && !isLoading
     }
 
     func register() async {

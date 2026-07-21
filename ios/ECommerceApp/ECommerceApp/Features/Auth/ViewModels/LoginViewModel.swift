@@ -20,9 +20,10 @@ final class LoginViewModel: ObservableObject {
     }
 
     var canSubmit: Bool {
-        !email.isEmpty && !password.isEmpty && !isLoading
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !password.isEmpty
+            && !isLoading
     }
-
     func login() async {
         guard !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   !password.isEmpty else {
