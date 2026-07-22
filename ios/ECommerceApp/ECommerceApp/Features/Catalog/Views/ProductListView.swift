@@ -3,6 +3,10 @@ import SwiftUI
 struct ProductListView: View {
     let refreshToken: Int
     @StateObject private var viewModel = ProductListViewModel()
+    private let gridColumns = [
+        GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 14)
+    ]
+
     init(refreshToken: Int = 0) {
         self.refreshToken = refreshToken
     }
@@ -38,32 +42,32 @@ struct ProductListView: View {
                                 .padding(.top, 8)
                         }
 
+                        heroSection
                         categoryFilter
                         filterControls
 
-                        LazyVStack(spacing: 0) {
+                        LazyVGrid(columns: gridColumns, spacing: 18) {
                             ForEach(viewModel.filteredProducts) { product in
                                 NavigationLink {
                                     ProductDetailView(product: product)
                                 } label: {
                                     ProductRowView(product: product)
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 8)
                                 }
                                 .buttonStyle(.plain)
-
-                                Divider()
-                                    .padding(.leading, 108)
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 28)
                     }
+                    .background(LuxeTheme.background)
                     .refreshable {
                         await viewModel.loadProducts()
                     }
                 }
             }
-            .navigationTitle("Ürünler")
-            .searchable(text: $viewModel.searchText, prompt: "Ürün ara")
+            .navigationTitle("LUXECART")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $viewModel.searchText, prompt: "Lüks ürün ara")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -89,6 +93,42 @@ struct ProductListView: View {
         }
     }
 
+    private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("NEW SEASON")
+                .font(.caption)
+                .fontWeight(.bold)
+                .tracking(1.6)
+                .foregroundStyle(LuxeTheme.secondaryText)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("The Minimalist Collection")
+                    .font(.system(size: 32, weight: .bold, design: .default))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                Text("Sessiz lüks, seçili ürünler ve rafine alışveriş deneyimi.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.84))
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 220, alignment: .bottomLeading)
+            .padding(22)
+            .background {
+                LinearGradient(
+                    colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: LuxeTheme.charcoal.opacity(0.10), radius: 24, x: 0, y: 14)
+        }
+        .padding(.horizontal, LuxeTheme.horizontalPadding)
+        .padding(.top, 14)
+        .padding(.bottom, 18)
+    }
+
     private var categoryFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -98,7 +138,7 @@ struct ProductListView: View {
                     categoryButton(title: category.name, slug: category.slug)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, LuxeTheme.horizontalPadding)
             .padding(.vertical, 8)
         }
     }
@@ -119,8 +159,8 @@ struct ProductListView: View {
             .pickerStyle(.menu)
         }
         .font(.subheadline)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        .padding(.horizontal, LuxeTheme.horizontalPadding)
+        .padding(.bottom, 14)
     }
 
     private func categoryButton(title: String, slug: String?) -> some View {
@@ -130,12 +170,13 @@ struct ProductListView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(viewModel.selectedCategorySlug == slug ? .semibold : .regular)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .foregroundStyle(viewModel.selectedCategorySlug == slug ? .white : LuxeTheme.charcoal)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
                 .background(
                     viewModel.selectedCategorySlug == slug
-                        ? Color.accentColor.opacity(0.15)
-                        : Color(.secondarySystemBackground)
+                        ? LuxeTheme.charcoal
+                        : LuxeTheme.surfaceLow
                 )
                 .clipShape(Capsule())
         }

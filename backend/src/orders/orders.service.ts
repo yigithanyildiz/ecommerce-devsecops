@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -50,6 +50,7 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
+          status: 'PAID',
           totalAmount,
           items: {
             create: cart.items.map((item) => {
@@ -68,7 +69,15 @@ export class OrdersService {
           },
         },
         include: {
-          items: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  imageUrl: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -96,7 +105,15 @@ export class OrdersService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                imageUrl: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -108,7 +125,15 @@ export class OrdersService {
         userId,
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                imageUrl: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -117,5 +142,30 @@ export class OrdersService {
     }
 
     return order;
+  }
+  async updateStatus(orderId: string, status: OrderStatus) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+  
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+  
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                imageUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 }

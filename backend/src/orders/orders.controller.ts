@@ -1,7 +1,18 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { 
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards, } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OrdersService } from './orders.service';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 type AuthenticatedRequest = Request & {
   user: {
@@ -11,7 +22,7 @@ type AuthenticatedRequest = Request & {
   };
 };
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -27,7 +38,19 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @Patch(':id/status')
+@Roles('ADMIN')
+updateStatus(
+  @Param('id') orderId: string,
+  @Body() updateOrderStatusDto: UpdateOrderStatusDto,
+) {
+  return this.ordersService.updateStatus(
+    orderId,
+    updateOrderStatusDto.status,
+  );
+}
   findOne(@Req() request: AuthenticatedRequest, @Param('id') orderId: string) {
     return this.ordersService.findOne(request.user.userId, orderId);
   }
+  
 }

@@ -5,48 +5,65 @@ struct ProfileView: View {
     @State private var showSignOutConfirmation = false
     var body: some View {
         NavigationStack {
-            Form {
+            ScrollView {
                 if let user = sessionManager.currentUser {
-                    Section {
-                        HStack(spacing: 14) {
+                    VStack(spacing: 22) {
+                        VStack(spacing: 14) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.accentColor.opacity(0.15))
-                                    .frame(width: 56, height: 56)
+                                    .fill(LuxeTheme.charcoal)
+                                    .frame(width: 76, height: 76)
 
                                 Text(user.initials)
-                                    .font(.headline)
+                                    .font(.title2)
                                     .fontWeight(.bold)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(.white)
                             }
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(user.name)
-                                    .font(.headline)
+                            Text(user.name)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundStyle(LuxeTheme.charcoal)
 
-                                Text(user.email)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(user.email)
+                                .font(.subheadline)
+                                .foregroundStyle(LuxeTheme.secondaryText)
                         }
-                        .padding(.vertical, 4)
-                    }
+                        .frame(maxWidth: .infinity)
+                        .padding(24)
+                        .luxeCard()
 
-                    Section("Hesap Bilgileri") {
-                        LabeledContent("Rol", value: user.roleDisplayName)
-                        LabeledContent("Kullanıcı ID", value: String(user.id.prefix(8)))
-                    }
-                }
+                        VStack(spacing: 0) {
+                            profileRow(icon: "person.text.rectangle", title: "Rol", value: user.roleDisplayName)
+                            Divider()
+                                .padding(.leading, 42)
+                            profileRow(icon: "number", title: "Kullanıcı ID", value: String(user.id.prefix(8)))
+                            Divider()
+                                .padding(.leading, 42)
+                            profileRow(icon: "bag", title: "Siparişler", value: "Takip et")
+                        }
+                        .padding(.horizontal, 16)
+                        .luxeCard()
 
-                Section("Oturum") {
-                    Button(role: .destructive) {
-                        showSignOutConfirmation = true
-                    } label: {
-                        Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
+                        Button(role: .destructive) {
+                            showSignOutConfirmation = true
+                        } label: {
+                            Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 15)
+                        }
+                        .foregroundStyle(LuxeTheme.danger)
+                        .background(LuxeTheme.surfaceLow)
+                        .clipShape(Capsule())
                     }
+                    .padding(.horizontal, LuxeTheme.horizontalPadding)
+                    .padding(.top, 24)
                 }
             }
+            .background(LuxeTheme.background)
             .navigationTitle("Profil")
+            .navigationBarTitleDisplayMode(.inline)
             .confirmationDialog("Çıkış yapmak istiyor musun?", isPresented: $showSignOutConfirmation) {
                 Button("Çıkış Yap", role: .destructive) {
                     sessionManager.signOut()
@@ -55,6 +72,24 @@ struct ProfileView: View {
                 Button("Vazgeç", role: .cancel) {}
             }
         }
+    }
+
+    private func profileRow(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .foregroundStyle(LuxeTheme.charcoal)
+                .frame(width: 28, height: 28)
+
+            Text(title)
+                .foregroundStyle(LuxeTheme.charcoal)
+
+            Spacer()
+
+            Text(value)
+                .foregroundStyle(LuxeTheme.secondaryText)
+        }
+        .font(.subheadline)
+        .padding(.vertical, 16)
     }
 }
 private extension AuthUser {
