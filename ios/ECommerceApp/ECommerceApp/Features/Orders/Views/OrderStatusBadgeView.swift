@@ -20,6 +20,12 @@ struct OrderStatusBadgeView: View {
             return "Bekliyor"
         case "PAID":
             return "Ödendi"
+        case "PREPARING":
+            return "Hazırlanıyor"
+        case "SHIPPED":
+            return "Kargoda"
+        case "DELIVERED":
+            return "Teslim Edildi"
         case "CANCELLED":
             return "İptal"
         default:
@@ -30,11 +36,17 @@ struct OrderStatusBadgeView: View {
     private var statusColor: Color {
         switch status {
         case "PENDING":
-            return .orange
+            return LuxeTheme.gold
         case "PAID":
-            return .green
+            return LuxeTheme.success
+        case "PREPARING":
+            return LuxeTheme.charcoal
+        case "SHIPPED":
+            return LuxeTheme.secondaryText
+        case "DELIVERED":
+            return LuxeTheme.success
         case "CANCELLED":
-            return .red
+            return LuxeTheme.danger
         default:
             return .secondary
         }
