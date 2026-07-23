@@ -3,14 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CheckoutDto } from './dto/checkout.dto';
 
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async checkout(userId: string) {
+  async checkout(userId: string, checkoutDto: CheckoutDto) {
     return this.prisma.$transaction(async (tx) => {
       const cart = await tx.cart.findUnique({
         where: { userId },
@@ -50,8 +51,16 @@ export class OrdersService {
       const order = await tx.order.create({
         data: {
           userId,
-          status: 'PAID',
+          status: OrderStatus.PAID,
           totalAmount,
+          recipientName: checkoutDto.recipientName.trim(),
+          phone: checkoutDto.phone.trim(),
+          shippingCity: checkoutDto.shippingCity.trim(),
+          shippingAddressLine: checkoutDto.shippingAddressLine.trim(),
+          paymentMethod:
+            checkoutDto.paymentMethod === 'CASH_ON_DELIVERY'
+              ? PaymentMethod.CASH_ON_DELIVERY
+              : PaymentMethod.DEMO_CARD,
           items: {
             create: cart.items.map((item) => {
               const lineTotal = item.product.price.mul(

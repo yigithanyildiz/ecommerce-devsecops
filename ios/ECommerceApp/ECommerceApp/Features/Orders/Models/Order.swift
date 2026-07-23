@@ -5,6 +5,12 @@ struct Order: Identifiable, Decodable {
     let userId: String
     let status: String
     let totalAmount: String
+    let recipientName: String?
+    let phone: String?
+    let shippingCity: String?
+    let shippingAddressLine: String?
+    let paymentMethod: String?
+    let trackingNumber: String?
     let items:[OrderItem]
     let createdAt: String
     let updatedAt: String
@@ -23,6 +29,17 @@ extension Order {
             date: .abbreviated,
             time: .shortened
         )
+    }
+
+    var paymentMethodLabel: String {
+        switch paymentMethod {
+        case "DEMO_CARD":
+            return "Demo Kart"
+        case "CASH_ON_DELIVERY":
+            return "Kapıda Ödeme"
+        default:
+            return paymentMethod ?? "-"
+        }
     }
 }
 

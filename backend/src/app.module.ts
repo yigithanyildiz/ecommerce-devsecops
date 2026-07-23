@@ -9,6 +9,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { FavoritesModule } from './favorites/favorites.module';
+import { AdminModule } from './admin/admin.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([
@@ -23,6 +24,7 @@ import { FavoritesModule } from './favorites/favorites.module';
     CartModule,
     OrdersModule,
     FavoritesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
