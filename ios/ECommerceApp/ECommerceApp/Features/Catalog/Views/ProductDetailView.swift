@@ -323,20 +323,22 @@ struct ProductDetailView: View {
             .clipShape(Capsule())
             .disabled(product.stock == 0 || isAddingToCart)
 
-            Button {
-                Task {
-                    await buyNow()
+            if product.stock > 0 {
+                Button {
+                    Task {
+                        await buyNow()
+                    }
+                } label: {
+                    Text("Satın Al")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
                 }
-            } label: {
-                Text("Satın Al")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                .foregroundStyle(.white)
+                .background(LuxeTheme.charcoal)
+                .clipShape(Capsule())
+                .disabled(isAddingToCart)
             }
-            .foregroundStyle(.white)
-            .background(LuxeTheme.charcoal)
-            .clipShape(Capsule())
-            .disabled(product.stock == 0 || isAddingToCart)
         }
         .padding(.horizontal, LuxeTheme.horizontalPadding)
         .padding(.top, 14)

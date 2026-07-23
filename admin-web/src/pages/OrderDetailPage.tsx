@@ -8,6 +8,12 @@ type OrderDetail = {
   id: string;
   status: string;
   totalAmount: string;
+  recipientName?: string | null;
+  phone?: string | null;
+  shippingCity?: string | null;
+  shippingAddressLine?: string | null;
+  paymentMethod?: string | null;
+  trackingNumber?: string | null;
   createdAt: string;
   updatedAt: string;
   user?: {
@@ -33,6 +39,7 @@ export function OrderDetailPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [trackingNumber, setTrackingNumber] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
@@ -46,6 +53,7 @@ export function OrderDetailPage() {
         const response = await api.get<OrderDetail>(`/admin/orders/${orderId}`);
         setOrder(response.data);
         setSelectedStatus(response.data.status);
+        setTrackingNumber(response.data.trackingNumber ?? "");
       } catch {
         setError("Order detail could not be loaded.");
       } finally {
@@ -63,14 +71,16 @@ export function OrderDetailPage() {
   
     try {
       const response = await api.patch<OrderDetail>(
-        `/admin/orders/${order.id}/status`,
+        `/admin/orders/${order.id}/fulfillment`,
         {
           status: selectedStatus,
-        }
+          trackingNumber: trackingNumber.trim() || null,
+        },
       );
   
       setOrder(response.data);
       setSelectedStatus(response.data.status);
+      setTrackingNumber(response.data.trackingNumber ?? "");
     } catch {
       setError("Order status could not be updated.");
     } finally {
@@ -192,6 +202,36 @@ export function OrderDetailPage() {
             </div>
 
             <div className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
+              <h2 className="font-bold text-[#1c1b1b]">Delivery</h2>
+              <div className="mt-4 space-y-2 text-sm">
+                <p>
+                  <span className="font-semibold text-[#1c1b1b]">
+                    Recipient:
+                  </span>{" "}
+                  <span className="text-[#444748]">
+                    {order.recipientName ?? "-"}
+                  </span>
+                </p>
+                <p>
+                  <span className="font-semibold text-[#1c1b1b]">Phone:</span>{" "}
+                  <span className="text-[#444748]">{order.phone ?? "-"}</span>
+                </p>
+                <p>
+                  <span className="font-semibold text-[#1c1b1b]">City:</span>{" "}
+                  <span className="text-[#444748]">
+                    {order.shippingCity ?? "-"}
+                  </span>
+                </p>
+                <p>
+                  <span className="font-semibold text-[#1c1b1b]">Address:</span>{" "}
+                  <span className="text-[#444748]">
+                    {order.shippingAddressLine ?? "-"}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
               <h2 className="font-bold text-[#1c1b1b]">Summary</h2>
 
               <div className="mt-4 space-y-3 text-sm">
@@ -210,6 +250,20 @@ export function OrderDetailPage() {
                 </div>
 
                 <div className="border-t border-[#f1edec] pt-3">
+                  <div className="mb-3 flex justify-between gap-4">
+                    <span className="text-[#444748]">Payment</span>
+                    <span className="font-medium text-[#1c1b1b]">
+                      {formatPaymentMethod(order.paymentMethod)}
+                    </span>
+                  </div>
+
+                  <div className="mb-3 flex justify-between gap-4">
+                    <span className="text-[#444748]">Tracking</span>
+                    <span className="font-medium text-[#1c1b1b]">
+                      {order.trackingNumber ?? "-"}
+                    </span>
+                  </div>
+
                   <div className="flex items-end justify-between gap-4">
                     <span className="font-bold text-[#1c1b1b]">Total</span>
                     <span className="text-2xl font-bold text-[#1c1b1b]">
@@ -239,6 +293,13 @@ export function OrderDetailPage() {
                 <option value="CANCELLED">Cancelled</option>
               </select>
 
+              <input
+                value={trackingNumber}
+                onChange={(event) => setTrackingNumber(event.target.value)}
+                placeholder="Tracking number"
+                className="mt-3 w-full rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold text-[#1c1b1b] outline-none ring-1 ring-transparent transition focus:ring-[#1c1b1b]"
+              />
+
               <button
                 onClick={updateStatus}
                 disabled={isUpdatingStatus || !selectedStatus}
@@ -252,4 +313,16 @@ export function OrderDetailPage() {
       )}
     </div>
   );
+}
+
+function formatPaymentMethod(paymentMethod?: string | null) {
+  if (paymentMethod === "DEMO_CARD") {
+    return "Demo Card";
+  }
+
+  if (paymentMethod === "CASH_ON_DELIVERY") {
+    return "Cash on Delivery";
+  }
+
+  return paymentMethod ?? "-";
 }

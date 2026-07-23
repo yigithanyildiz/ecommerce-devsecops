@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Boxes, PackageCheck, TrendingUp, TriangleAlert } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  PackageCheck,
+  TrendingUp,
+  TriangleAlert,
+} from "lucide-react";
 import { api } from "../api/client";
 import { StatCard } from "../components/StatCard";
 import { StatusBadge } from "../components/StatusBadge";
@@ -10,6 +16,7 @@ type DashboardStats = {
   totalOrders: number;
   totalRevenue: string;
   lowStockProducts: number;
+  outOfStockProducts: number;
   recentOrders: Array<{
     id: string;
     status: string;
@@ -56,8 +63,14 @@ export function DashboardPage() {
     loadDashboard();
   }, []);
 
+  const formattedRevenue = stats
+    ? Number(stats.totalRevenue).toLocaleString("en-US", {
+        maximumFractionDigits: 2,
+      })
+    : "0";
+
   return (
-    <div>
+    <div className="w-full">
       <div className="mb-8">
         <p className="text-xs font-bold tracking-[0.22em] text-[#444748]">
           OVERVIEW
@@ -82,34 +95,40 @@ export function DashboardPage() {
 
       {stats && (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               title="Products"
               value={stats.totalProducts}
               icon={Boxes}
-              helper="Total catalog items"
+              helper="Catalog items"
             />
             <StatCard
               title="Orders"
               value={stats.totalOrders}
               icon={PackageCheck}
-              helper="All customer orders"
+              helper="Customer orders"
             />
             <StatCard
               title="Revenue"
-              value={`$${stats.totalRevenue}`}
+              value={`$${formattedRevenue}`}
               icon={TrendingUp}
-              helper="Total order value"
+              helper="Order value"
             />
             <StatCard
               title="Low Stock"
               value={stats.lowStockProducts}
               icon={TriangleAlert}
-              helper="Products at 5 or below"
+              helper="Stock <= 5"
+            />
+            <StatCard
+              title="Out of Stock"
+              value={stats.outOfStockProducts}
+              icon={AlertTriangle}
+              helper="No stock"
             />
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
             <section className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
               <div className="mb-5 flex items-center justify-between gap-4">
                 <div>

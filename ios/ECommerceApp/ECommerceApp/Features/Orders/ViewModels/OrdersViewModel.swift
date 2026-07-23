@@ -37,7 +37,7 @@ final class OrdersViewModel: ObservableObject {
         isLoading = false
     }
 
-    func checkout() async {
+    func checkout(request: CheckoutRequest) async {
         guard let accessToken = sessionManager.accessToken else {
             errorMessage = "Sipariş oluşturmak için giriş yapmalısın."
             return
@@ -48,7 +48,10 @@ final class OrdersViewModel: ObservableObject {
         lastCreatedOrder = nil
 
         do {
-            lastCreatedOrder = try await orderService.checkout(accessToken: accessToken)
+            lastCreatedOrder = try await orderService.checkout(
+                request: request,
+                accessToken: accessToken
+            )
             await loadOrders()
         } catch {
             handle(error)

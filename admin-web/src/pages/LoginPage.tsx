@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
@@ -20,11 +21,23 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-    } catch {
-      setError("Giriş başarısız. E-posta veya şifreyi kontrol et.");
+    } catch (error) {
+      setError(getLoginErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function getLoginErrorMessage(error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.message;
+
+      if (message === "Account is inactive") {
+        return "Bu hesap pasif durumda. Admin erişimi kapatılmış.";
+      }
+    }
+
+    return "Giriş başarısız. E-posta veya şifreyi kontrol et.";
   }
 
   return (

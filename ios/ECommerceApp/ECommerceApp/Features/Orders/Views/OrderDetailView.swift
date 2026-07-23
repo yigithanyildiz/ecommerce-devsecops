@@ -8,6 +8,7 @@ struct OrderDetailView: View {
             VStack(alignment: .leading, spacing: 22) {
                 headerCard
                 timelineCard
+                deliveryCard
                 itemsCard
                 totalCard
             }
@@ -101,6 +102,38 @@ struct OrderDetailView: View {
                         .padding(.leading, 58)
                 }
             }
+        }
+        .padding(20)
+        .luxeCard()
+    }
+
+    private var deliveryCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Teslimat")
+                .font(.headline)
+                .foregroundStyle(LuxeTheme.charcoal)
+
+            detailRow("Alıcı", order.recipientName ?? "-")
+            detailRow("Telefon", order.phone ?? "-")
+            detailRow("Şehir", order.shippingCity ?? "-")
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Adres")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .tracking(1.2)
+                    .foregroundStyle(LuxeTheme.secondaryText)
+
+                Text(order.shippingAddressLine ?? "-")
+                    .font(.subheadline)
+                    .foregroundStyle(LuxeTheme.charcoal)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            detailRow("Ödeme", order.paymentMethodLabel)
+            detailRow("Kargo Takip", order.trackingNumber ?? "-")
         }
         .padding(20)
         .luxeCard()

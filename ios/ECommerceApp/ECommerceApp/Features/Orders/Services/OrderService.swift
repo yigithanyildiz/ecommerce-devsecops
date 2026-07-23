@@ -1,7 +1,7 @@
 import Foundation
 
 protocol OrderServicing {
-    func checkout(accessToken: String) async throws -> Order
+    func checkout(request: CheckoutRequest, accessToken: String) async throws -> Order
     func fetchOrders(accessToken: String) async throws -> [Order]
     func fetchOrder(id: String, accessToken: String) async throws -> Order
 }
@@ -13,10 +13,10 @@ final class OrderService: OrderServicing {
         self.apiClient = apiClient
     }
 
-    func checkout(accessToken: String) async throws -> Order {
+    func checkout(request: CheckoutRequest, accessToken: String) async throws -> Order {
         try await apiClient.authenticatedPost(
             "orders/checkout",
-            body: EmptyRequest(),
+            body: request,
             accessToken: accessToken
         )
     }
@@ -36,4 +36,10 @@ final class OrderService: OrderServicing {
     }
 }
 
-private struct EmptyRequest: Encodable {}
+struct CheckoutRequest: Encodable {
+    let recipientName: String
+    let phone: String
+    let shippingCity: String
+    let shippingAddressLine: String
+    let paymentMethod: String
+}

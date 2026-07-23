@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
+import { OrderStatus } from '@prisma/client';
+import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -10,6 +11,7 @@ export class AdminService {
       totalProducts,
       totalOrders,
       lowStockProducts,
+      outOfStockProducts,
       revenueAggregate,
       recentOrders,
       lowStockItems,
@@ -20,6 +22,13 @@ export class AdminService {
         where: {
           stock: {
             lte: 5,
+          },
+        },
+      }),
+      this.prisma.product.count({
+        where: {
+          stock: {
+            lte: 0,
           },
         },
       }),
@@ -67,6 +76,7 @@ export class AdminService {
       totalProducts,
       totalOrders,
       lowStockProducts,
+      outOfStockProducts,
       totalRevenue: revenueAggregate._sum.totalAmount?.toString() ?? '0',
       recentOrders,
       lowStockItems,
@@ -132,7 +142,7 @@ export class AdminService {
       },
     });
   }
-  async updateOrderStatus(orderId: string, status: string) {
+  async updateOrderStatus(orderId: string, status: OrderStatus) {
     const order = await this.prisma.order.findUnique({
       where: {
         id: orderId,
@@ -148,7 +158,7 @@ export class AdminService {
         id: orderId,
       },
       data: {
-        status: status as any,
+        status,
       },
       include: {
         items: {
@@ -170,6 +180,52 @@ export class AdminService {
       },
     });
   }
+
+  async updateOrderFulfillment(
+    orderId: string,
+    data: UpdateOrderFulfillmentDto,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: {
+        id: orderId,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return this.prisma.order.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.trackingNumber !== undefined
+          ? { trackingNumber: data.trackingNumber || null }
+          : {}),
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                imageUrl: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
   async getCategories() {
     return this.prisma.category.findMany({
       orderBy: {

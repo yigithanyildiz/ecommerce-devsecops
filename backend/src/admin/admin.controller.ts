@@ -7,10 +7,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { OrderStatus } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { AdminService } from './admin.service';
+import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -82,9 +84,17 @@ export class AdminController {
   @Patch('orders/:orderId/status')
   updateOrderStatus(
     @Param('orderId') orderId: string,
-    @Body('status') status: string,
+    @Body('status') status: OrderStatus,
   ) {
     return this.adminService.updateOrderStatus(orderId, status);
+  }
+
+  @Patch('orders/:orderId/fulfillment')
+  updateOrderFulfillment(
+    @Param('orderId') orderId: string,
+    @Body() body: UpdateOrderFulfillmentDto,
+  ) {
+    return this.adminService.updateOrderFulfillment(orderId, body);
   }
 
   @Get('categories')

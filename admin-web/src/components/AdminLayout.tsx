@@ -89,7 +89,7 @@ export function AdminLayout() {
         </div>
       </aside>
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-[#e5e2e1] bg-[#fdf8f8]/85 px-5 py-4 backdrop-blur lg:px-8">
           <div className="flex items-center justify-between">
             <div>
@@ -130,7 +130,7 @@ export function AdminLayout() {
           </nav>
         </header>
 
-        <main className="px-5 py-6 lg:px-8">
+        <main className="w-full min-w-0 px-5 py-6 lg:px-8">
           <Outlet />
         </main>
       </div>

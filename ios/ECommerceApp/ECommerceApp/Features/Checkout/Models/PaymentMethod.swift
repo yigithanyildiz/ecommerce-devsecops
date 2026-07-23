@@ -23,4 +23,13 @@ enum PaymentMethod: String, CaseIterable, Identifiable {
             return "Teslimat sırasında ödeme."
         }
     }
+
+    var apiValue: String {
+        switch self {
+        case .demoCard:
+            return "DEMO_CARD"
+        case .cashOnDelivery:
+            return "CASH_ON_DELIVERY"
+        }
+    }
 }
