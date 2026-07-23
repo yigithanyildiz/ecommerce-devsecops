@@ -211,7 +211,15 @@ struct CheckoutView: View {
 
         errorMessage = nil
         try? await Task.sleep(nanoseconds: 700_000_000)
-        await ordersViewModel.checkout()
+        await ordersViewModel.checkout(
+            request: CheckoutRequest(
+                recipientName: deliveryAddress.fullName.trimmingCharacters(in: .whitespacesAndNewlines),
+                phone: deliveryAddress.phone.trimmingCharacters(in: .whitespacesAndNewlines),
+                shippingCity: deliveryAddress.city.trimmingCharacters(in: .whitespacesAndNewlines),
+                shippingAddressLine: deliveryAddress.addressLine.trimmingCharacters(in: .whitespacesAndNewlines),
+                paymentMethod: paymentMethod.apiValue
+            )
+        )
 
         if ordersViewModel.lastCreatedOrder != nil {
             cartViewModel.clearItems()
