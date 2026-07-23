@@ -34,4 +34,9 @@ struct OrderItem: Identifiable, Decodable {
     let quantity: Int
     let lineTotal: String
     let createdAt: String
+    let product: OrderItemProduct?
+}
+
+struct OrderItemProduct: Decodable {
+    let imageUrl: String?
 }

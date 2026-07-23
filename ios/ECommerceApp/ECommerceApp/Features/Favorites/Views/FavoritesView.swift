@@ -3,6 +3,9 @@ import SwiftUI
 struct FavoritesView: View {
     @StateObject private var viewModel: FavoritesViewModel
     private let onBrowseProducts: () -> Void
+    private let gridColumns = [
+        GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 14)
+    ]
 
     init(
         sessionManager: SessionManager,
@@ -32,38 +35,58 @@ struct FavoritesView: View {
                         .buttonStyle(.borderedProminent)
                     }
                 } else {
-                    List {
+                    ScrollView {
                         if let errorMessage = viewModel.errorMessage {
-                            Section {
-                                Text(errorMessage)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                            }
+                            Text(errorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, LuxeTheme.horizontalPadding)
+                                .padding(.top, 12)
                         }
 
-                        ForEach(viewModel.products) { product in
-                            NavigationLink {
-                                ProductDetailView(product: product)
-                            } label: {
-                                ProductRowView(product: product)
-                            }
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    Task {
-                                        await viewModel.toggleFavorite(product: product)
-                                    }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Your Favorites")
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundStyle(LuxeTheme.charcoal)
+                            Text("Beğendiğin ürünleri tek bir zarif alanda topladık.")
+                                .font(.subheadline)
+                                .foregroundStyle(LuxeTheme.secondaryText)
+                        }
+                        .padding(.horizontal, LuxeTheme.horizontalPadding)
+                        .padding(.top, 18)
+                        .padding(.bottom, 12)
+
+                        LazyVGrid(columns: gridColumns, spacing: 18) {
+                            ForEach(viewModel.products) { product in
+                                NavigationLink {
+                                    ProductDetailView(product: product)
                                 } label: {
-                                    Label("Kaldır", systemImage: "heart.slash")
+                                    ProductRowView(product: product)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            await viewModel.toggleFavorite(product: product)
+                                        }
+                                    } label: {
+                                        Label("Favorilerden kaldır", systemImage: "heart.slash")
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 28)
                     }
+                    .background(LuxeTheme.background)
                     .refreshable {
                         await viewModel.loadFavorites()
                     }
                 }
             }
             .navigationTitle("Favoriler")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

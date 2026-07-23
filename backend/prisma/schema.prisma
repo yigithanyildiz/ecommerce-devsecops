@@ -87,6 +87,9 @@ model Favorite {
 enum OrderStatus {
   PENDING
   PAID
+  PREPARING
+  SHIPPED
+  DELIVERED
   CANCELLED
 }
 
