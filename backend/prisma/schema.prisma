@@ -22,6 +22,7 @@ model User {
   cart         Cart?
   orders       Order[]
   favorites    Favorite[]
+  addresses    Address[]
 }
 
 model Category {
@@ -82,6 +83,24 @@ model Favorite {
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])
+}
+
+model Address {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  title         String
+  recipientName String
+  phone         String
+  city          String
+  addressLine   String
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
 }
 
 enum OrderStatus {

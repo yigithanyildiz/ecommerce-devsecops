@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { AdminModule } from './admin/admin.module';
+import { AddressesModule } from './addresses/addresses.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([
@@ -25,6 +26,7 @@ import { AdminModule } from './admin/admin.module';
     OrdersModule,
     FavoritesModule,
     AdminModule,
+    AddressesModule,
   ],
   controllers: [AppController],
   providers: [
