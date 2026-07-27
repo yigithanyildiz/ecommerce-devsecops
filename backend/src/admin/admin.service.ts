@@ -156,11 +156,11 @@ export class AdminService {
         id: orderId,
       },
     });
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     return this.prisma.order.update({
       where: {
         id: orderId,
@@ -383,10 +383,7 @@ export class AdminService {
       this.handleAdminWriteError(error, 'Product slug already exists');
     }
   }
-  async updateProduct(
-    productId: string,
-    data: UpdateAdminProductDto,
-  ) {
+  async updateProduct(productId: string, data: UpdateAdminProductDto) {
     const product = await this.prisma.product.findUnique({
       where: {
         id: productId,
@@ -412,7 +409,9 @@ export class AdminService {
           ...(data.imageUrl !== undefined
             ? { imageUrl: data.imageUrl || null }
             : {}),
-          ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
+          ...(data.categoryId !== undefined
+            ? { categoryId: data.categoryId }
+            : {}),
         },
         include: {
           category: true,
@@ -422,7 +421,7 @@ export class AdminService {
       this.handleAdminWriteError(error, 'Product slug already exists');
     }
   }
-  
+
   async updateProductStatus(productId: string, isActive: boolean) {
     const product = await this.prisma.product.findUnique({
       where: {
@@ -466,10 +465,7 @@ export class AdminService {
     }
   }
 
-  async updateCategory(
-    categoryId: string,
-    data: UpdateAdminCategoryDto,
-  ) {
+  async updateCategory(categoryId: string, data: UpdateAdminCategoryDto) {
     const category = await this.prisma.category.findUnique({
       where: {
         id: categoryId,
