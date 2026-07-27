@@ -3,6 +3,16 @@ import SwiftUI
 struct ProfileView: View {
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var showSignOutConfirmation = false
+    let onOpenOrders: () -> Void
+    let onOpenCart: () -> Void
+
+    init(
+        onOpenOrders: @escaping () -> Void = {},
+        onOpenCart: @escaping () -> Void = {}
+    ) {
+        self.onOpenOrders = onOpenOrders
+        self.onOpenCart = onOpenCart
+    }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -40,7 +50,23 @@ struct ProfileView: View {
                             profileRow(icon: "number", title: "Kullanıcı ID", value: String(user.id.prefix(8)))
                             Divider()
                                 .padding(.leading, 42)
-                            profileRow(icon: "bag", title: "Siparişler", value: "Takip et")
+
+                            Button {
+                                onOpenOrders()
+                            } label: {
+                                profileRow(icon: "bag", title: "Siparişler", value: "Takip et")
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider()
+                                .padding(.leading, 42)
+
+                            Button {
+                                onOpenCart()
+                            } label: {
+                                profileRow(icon: "cart", title: "Sepetim", value: "Görüntüle")
+                            }
+                            .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 16)
                         .luxeCard()
@@ -64,12 +90,19 @@ struct ProfileView: View {
             .background(LuxeTheme.background)
             .navigationTitle("Profil")
             .navigationBarTitleDisplayMode(.inline)
-            .confirmationDialog("Çıkış yapmak istiyor musun?", isPresented: $showSignOutConfirmation) {
+            .alert("Çıkış yapmak istiyor musun?", isPresented: $showSignOutConfirmation) {
                 Button("Çıkış Yap", role: .destructive) {
-                    sessionManager.signOut()
+                    var transaction = Transaction()
+                    transaction.animation = nil
+
+                    withTransaction(transaction) {
+                        sessionManager.signOut()
+                    }
                 }
 
                 Button("Vazgeç", role: .cancel) {}
+            } message: {
+                Text("Oturumun bu cihazdan kapatılacak.")
             }
         }
     }

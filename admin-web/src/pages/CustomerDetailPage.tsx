@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Heart, PackageCheck, UserRound } from "lucide-react";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 import { StatusBadge } from "../components/StatusBadge";
 
 type CustomerDetail = {
@@ -51,7 +51,9 @@ export function CustomerDetailPage() {
       );
       setCustomer(response.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Customer detail could not be loaded."));
+      setError(
+        getApiErrorMessage(error, "Customer detail could not be loaded."),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -69,27 +71,12 @@ export function CustomerDetailPage() {
       });
       await loadCustomer();
     } catch (error) {
-      setError(getErrorMessage(error, "Customer status could not be updated."));
+      setError(
+        getApiErrorMessage(error, "Customer status could not be updated."),
+      );
     } finally {
       setIsUpdatingStatus(false);
     }
-  }
-
-  function getErrorMessage(error: unknown, fallback: string) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
-      if (status && message) {
-        return `${fallback} (${status}: ${message})`;
-      }
-
-      if (status) {
-        return `${fallback} (${status})`;
-      }
-    }
-
-    return fallback;
   }
 
   useEffect(() => {

@@ -29,15 +29,18 @@ struct ProductRowView: View {
                         .font(.headline)
                         .fontWeight(.semibold)
                         .foregroundStyle(LuxeTheme.charcoal)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
 
                     Spacer()
 
                     if product.stock <= 0 {
-                        Text("Stokta Yok")
+                        Text("Tükendi")
                             .font(.caption)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
+                            .lineLimit(1)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 6)
                             .background(LuxeTheme.danger)
                             .clipShape(Capsule())

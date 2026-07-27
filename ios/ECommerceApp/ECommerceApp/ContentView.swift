@@ -68,11 +68,18 @@ struct ContentView: View {
                 }
                 .tag(AppTab.orders)
 
-                ProfileView()
-                    .tabItem {
-                        Label("Profil", systemImage: "person.crop.circle")
+                ProfileView(
+                    onOpenOrders: {
+                        selectedTab = .orders
+                    },
+                    onOpenCart: {
+                        selectedTab = .cart
                     }
-                    .tag(AppTab.profile)
+                )
+                .tabItem {
+                    Label("Profil", systemImage: "person.crop.circle")
+                }
+                .tag(AppTab.profile)
             } else {
                 LoginView(sessionManager: sessionManager)
                     .tabItem {

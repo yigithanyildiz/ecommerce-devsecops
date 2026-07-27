@@ -41,6 +41,25 @@ extension Order {
             return paymentMethod ?? "-"
         }
     }
+
+    var statusLabel: String {
+        switch status {
+        case "PENDING":
+            return "Bekliyor"
+        case "PAID":
+            return "Ödendi"
+        case "PREPARING":
+            return "Hazırlanıyor"
+        case "SHIPPED":
+            return "Kargoda"
+        case "DELIVERED":
+            return "Teslim Edildi"
+        case "CANCELLED":
+            return "İptal"
+        default:
+            return status
+        }
+    }
 }
 
 struct OrderItem: Identifiable, Decodable {

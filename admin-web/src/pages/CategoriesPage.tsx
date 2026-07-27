@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { FolderTree, RefreshCcw } from "lucide-react";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 
 type Category = {
   id: string;
@@ -33,7 +33,7 @@ export function CategoriesPage() {
       const response = await api.get<Category[]>("/admin/categories");
       setCategories(response.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Categories could not be loaded."));
+      setError(getApiErrorMessage(error, "Categories could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -80,20 +80,33 @@ export function CategoriesPage() {
     event.preventDefault();
 
     setError("");
+
+    const validationError = validateCategoryForm();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSaving(true);
+
+    const payload = {
+      name: form.name.trim(),
+      slug: form.slug.trim(),
+    };
 
     try {
       if (editingCategoryId) {
-        await api.patch(`/admin/categories/${editingCategoryId}`, form);
+        await api.patch(`/admin/categories/${editingCategoryId}`, payload);
       } else {
-        await api.post("/admin/categories", form);
+        await api.post("/admin/categories", payload);
       }
 
       resetForm();
       await loadCategories();
     } catch (error) {
       setError(
-        getErrorMessage(
+        getApiErrorMessage(
           error,
           editingCategoryId
             ? "Category could not be updated."
@@ -105,21 +118,16 @@ export function CategoriesPage() {
     }
   }
 
-  function getErrorMessage(error: unknown, fallback: string) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
-      if (status && message) {
-        return `${fallback} (${status}: ${message})`;
-      }
-
-      if (status) {
-        return `${fallback} (${status})`;
-      }
+  function validateCategoryForm() {
+    if (form.name.trim().length < 2) {
+      return "Category name must be at least 2 characters.";
     }
 
-    return fallback;
+    if (form.slug.trim().length < 2) {
+      return "Category slug must be at least 2 characters.";
+    }
+
+    return "";
   }
 
   return (
