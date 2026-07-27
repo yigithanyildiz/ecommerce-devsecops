@@ -5,6 +5,7 @@ struct Order: Identifiable, Decodable {
     let userId: String
     let status: String
     let totalAmount: String
+    let addressId: String?
     let recipientName: String?
     let phone: String?
     let shippingCity: String?

@@ -7,7 +7,10 @@ struct CheckoutView: View {
     @ObservedObject var ordersViewModel: OrdersViewModel
 
     let userId: String?
+    let accessToken: String?
     let onCheckoutSuccess: () -> Void
+
+    private let addressService = AddressService()
 
     @State private var deliveryAddress = DeliveryAddress()
     @State private var savedAddresses: [DeliveryAddress] = []
@@ -48,8 +51,8 @@ struct CheckoutView: View {
                 onClear: {}
             )
         }
-        .onAppear {
-            loadSavedAddressIfNeeded()
+        .task {
+            await loadSavedAddressIfNeeded()
         }
     }
 
@@ -402,6 +405,7 @@ struct CheckoutView: View {
         try? await Task.sleep(nanoseconds: 700_000_000)
         await ordersViewModel.checkout(
             request: CheckoutRequest(
+                addressId: savedAddresses.contains(where: { $0.id == deliveryAddress.id }) ? deliveryAddress.id : nil,
                 recipientName: deliveryAddress.fullName.trimmingCharacters(in: .whitespacesAndNewlines),
                 phone: deliveryAddress.phone.trimmingCharacters(in: .whitespacesAndNewlines),
                 shippingCity: deliveryAddress.city.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -414,7 +418,22 @@ struct CheckoutView: View {
             if shouldSaveAddress {
                 var addressToSave = deliveryAddress.trimmed
                 addressToSave.isDefault = savedAddresses.isEmpty || addressToSave.isDefault
-                DeliveryAddressStore.save(addressToSave, userId: userId)
+
+                if let accessToken {
+                    if savedAddresses.contains(where: { $0.id == addressToSave.id }) {
+                        _ = try? await addressService.updateAddress(
+                            addressToSave,
+                            accessToken: accessToken
+                        )
+                    } else {
+                        _ = try? await addressService.createAddress(
+                            addressToSave,
+                            accessToken: accessToken
+                        )
+                    }
+                } else {
+                    DeliveryAddressStore.save(addressToSave, userId: userId)
+                }
             }
 
             completedOrder = order
@@ -426,13 +445,24 @@ struct CheckoutView: View {
         }
     }
 
-    private func loadSavedAddressIfNeeded() {
+    private func loadSavedAddressIfNeeded() async {
         guard !didLoadSavedAddress else { return }
         didLoadSavedAddress = true
 
-        savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+        if let accessToken {
+            do {
+                savedAddresses = try await addressService.fetchAddresses(
+                    accessToken: accessToken
+                )
+                syncLocalAddressFallback()
+            } catch {
+                savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+            }
+        } else {
+            savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+        }
 
-        guard let savedAddress = DeliveryAddressStore.load(userId: userId) else {
+        guard let savedAddress = savedAddresses.first(where: { $0.isDefault }) ?? savedAddresses.first else {
             return
         }
 
@@ -457,10 +487,37 @@ struct CheckoutView: View {
     }
 
     private func saveAddressFromCheckout() {
-        let addressToSave = editableAddress.trimmed
-        DeliveryAddressStore.save(addressToSave, userId: userId)
-        savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
-        deliveryAddress = savedAddresses.first { $0.id == addressToSave.id } ?? addressToSave
-        shouldSaveAddress = false
+        Task {
+            let addressToSave = editableAddress.trimmed
+
+            if let accessToken {
+                do {
+                    let savedAddress = try await addressService.createAddress(
+                        addressToSave,
+                        accessToken: accessToken
+                    )
+                    savedAddresses = try await addressService.fetchAddresses(
+                        accessToken: accessToken
+                    )
+                    syncLocalAddressFallback()
+                    deliveryAddress = savedAddresses.first { $0.id == savedAddress.id } ?? savedAddress
+                    shouldSaveAddress = false
+                } catch {
+                    errorMessage = "Adres kaydedilemedi."
+                }
+            } else {
+                DeliveryAddressStore.save(addressToSave, userId: userId)
+                savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+                deliveryAddress = savedAddresses.first { $0.id == addressToSave.id } ?? addressToSave
+                shouldSaveAddress = false
+            }
+        }
+    }
+
+    private func syncLocalAddressFallback() {
+        DeliveryAddressStore.clear(userId: userId)
+        savedAddresses.forEach { address in
+            DeliveryAddressStore.save(address, userId: userId)
+        }
     }
 }

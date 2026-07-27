@@ -4,11 +4,16 @@ struct DeliveryAddressesView: View {
     @Environment(\.dismiss) private var dismiss
 
     let userId: String?
+    let accessToken: String?
     let onChange: () -> Void
+
+    private let addressService = AddressService()
 
     @State private var addresses: [DeliveryAddress] = []
     @State private var editableAddress = DeliveryAddress()
     @State private var showEditor = false
+    @State private var isLoading = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -26,7 +31,12 @@ struct DeliveryAddressesView: View {
                             .foregroundStyle(LuxeTheme.charcoal)
                     }
 
-                    if addresses.isEmpty {
+                    if isLoading && addresses.isEmpty {
+                        ProgressView("Adresler yükleniyor...")
+                            .frame(maxWidth: .infinity)
+                            .padding(28)
+                            .luxeCard()
+                    } else if addresses.isEmpty {
                         emptyState
                     } else {
                         VStack(spacing: 12) {
@@ -34,6 +44,13 @@ struct DeliveryAddressesView: View {
                                 addressCard(address)
                             }
                         }
+                    }
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(LuxeTheme.danger)
+                            .padding(.horizontal, 4)
                     }
 
                     Button {
@@ -75,8 +92,8 @@ struct DeliveryAddressesView: View {
                     onClear: deleteEditableAddress
                 )
             }
-            .onAppear {
-                loadAddresses()
+            .task {
+                await loadAddresses()
             }
         }
     }
@@ -146,9 +163,9 @@ struct DeliveryAddressesView: View {
 
                 if !address.isDefault {
                     Button("Varsayılan Yap") {
-                        DeliveryAddressStore.setDefault(address, userId: userId)
-                        loadAddresses()
-                        onChange()
+                        Task {
+                            await setDefaultAddress(address)
+                        }
                     }
                     .buttonStyle(.bordered)
                     .tint(LuxeTheme.charcoal)
@@ -159,20 +176,103 @@ struct DeliveryAddressesView: View {
         .luxeCard()
     }
 
-    private func loadAddresses() {
-        addresses = DeliveryAddressStore.loadAll(userId: userId)
+    private func loadAddresses() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let accessToken else {
+            addresses = DeliveryAddressStore.loadAll(userId: userId)
+            return
+        }
+
+        do {
+            addresses = try await addressService.fetchAddresses(accessToken: accessToken)
+            syncLocalFallback()
+            errorMessage = nil
+        } catch {
+            addresses = DeliveryAddressStore.loadAll(userId: userId)
+            errorMessage = "Adresler sunucudan alınamadı."
+        }
     }
 
     private func saveEditableAddress() {
-        DeliveryAddressStore.save(editableAddress, userId: userId)
-        loadAddresses()
-        onChange()
+        Task {
+            guard let accessToken else {
+                DeliveryAddressStore.save(editableAddress, userId: userId)
+                addresses = DeliveryAddressStore.loadAll(userId: userId)
+                onChange()
+                return
+            }
+
+            do {
+                if addresses.contains(where: { $0.id == editableAddress.id }) {
+                    _ = try await addressService.updateAddress(
+                        editableAddress,
+                        accessToken: accessToken
+                    )
+                } else {
+                    _ = try await addressService.createAddress(
+                        editableAddress,
+                        accessToken: accessToken
+                    )
+                }
+
+                await loadAddresses()
+                onChange()
+            } catch {
+                errorMessage = "Adres kaydedilemedi."
+            }
+        }
     }
 
     private func deleteEditableAddress() {
-        DeliveryAddressStore.delete(editableAddress, userId: userId)
-        editableAddress = DeliveryAddress()
-        loadAddresses()
-        onChange()
+        Task {
+            guard let accessToken else {
+                DeliveryAddressStore.delete(editableAddress, userId: userId)
+                editableAddress = DeliveryAddress()
+                addresses = DeliveryAddressStore.loadAll(userId: userId)
+                onChange()
+                return
+            }
+
+            do {
+                try await addressService.deleteAddress(
+                    id: editableAddress.id,
+                    accessToken: accessToken
+                )
+                editableAddress = DeliveryAddress()
+                await loadAddresses()
+                onChange()
+            } catch {
+                errorMessage = "Adres silinemedi."
+            }
+        }
+    }
+
+    private func setDefaultAddress(_ address: DeliveryAddress) async {
+        guard let accessToken else {
+            DeliveryAddressStore.setDefault(address, userId: userId)
+            addresses = DeliveryAddressStore.loadAll(userId: userId)
+            onChange()
+            return
+        }
+
+        do {
+            _ = try await addressService.setDefaultAddress(
+                id: address.id,
+                accessToken: accessToken
+            )
+            await loadAddresses()
+            onChange()
+        } catch {
+            errorMessage = "Varsayılan adres güncellenemedi."
+        }
+    }
+
+    private func syncLocalFallback() {
+        DeliveryAddressStore.clear(userId: userId)
+        addresses.forEach { address in
+            DeliveryAddressStore.save(address, userId: userId)
+        }
     }
 }

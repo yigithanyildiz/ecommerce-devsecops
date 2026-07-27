@@ -37,6 +37,7 @@ final class OrderService: OrderServicing {
 }
 
 struct CheckoutRequest: Encodable {
+    let addressId: String?
     let recipientName: String
     let phone: String
     let shippingCity: String
