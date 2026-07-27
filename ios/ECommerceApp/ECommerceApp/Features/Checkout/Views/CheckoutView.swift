@@ -7,12 +7,27 @@ struct CheckoutView: View {
     @ObservedObject var ordersViewModel: OrdersViewModel
 
     let onCheckoutSuccess: () -> Void
+
     @State private var deliveryAddress = DeliveryAddress()
     @State private var paymentMethod: PaymentMethod = .demoCard
     @State private var errorMessage: String?
     @State private var isSubmitting = false
+    @State private var completedOrder: Order?
 
     var body: some View {
+        Group {
+            if let completedOrder {
+                successView(order: completedOrder)
+            } else {
+                checkoutForm
+            }
+        }
+        .background(LuxeTheme.background)
+        .navigationTitle(completedOrder == nil ? "Ödeme" : "Sipariş Alındı")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var checkoutForm: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 checkoutHeader
@@ -53,9 +68,68 @@ struct CheckoutView: View {
             .padding(.top, 18)
             .padding(.bottom, 34)
         }
-        .background(LuxeTheme.background)
-        .navigationTitle("Ödeme")
-        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func successView(order: Order) -> some View {
+        VStack(spacing: 22) {
+            Spacer(minLength: 40)
+
+            ZStack {
+                Circle()
+                    .fill(LuxeTheme.success.opacity(0.12))
+                    .frame(width: 104, height: 104)
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 58))
+                    .foregroundStyle(LuxeTheme.success)
+            }
+
+            VStack(spacing: 8) {
+                Text("Siparişin Alındı")
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(LuxeTheme.charcoal)
+
+                Text("Siparişini Siparişler sekmesinden takip edebilirsin.")
+                    .font(.subheadline)
+                    .foregroundStyle(LuxeTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
+
+            VStack(spacing: 12) {
+                detailRow("Sipariş No", "#\(order.id.prefix(8))")
+                detailRow("Toplam", order.totalAmount.usdCurrencyText, isStrong: true)
+                detailRow("Durum", order.statusLabel)
+            }
+            .padding(20)
+            .luxeCard()
+
+            Button {
+                cartViewModel.clearItems()
+                onCheckoutSuccess()
+                dismiss()
+            } label: {
+                Text("Siparişlerime Git")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(LuxeTheme.charcoal)
+                    .clipShape(Capsule())
+            }
+
+            Button {
+                dismiss()
+            } label: {
+                Text("Sepete Dön")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(LuxeTheme.charcoal)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, LuxeTheme.horizontalPadding)
     }
 
     private var checkoutHeader: some View {
@@ -200,6 +274,18 @@ struct CheckoutView: View {
         .font(.subheadline)
     }
 
+    private func detailRow(_ title: String, _ value: String, isStrong: Bool = false) -> some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(LuxeTheme.secondaryText)
+            Spacer()
+            Text(value)
+                .fontWeight(isStrong ? .bold : .medium)
+                .foregroundStyle(LuxeTheme.charcoal)
+        }
+        .font(.subheadline)
+    }
+
     private func submit() async {
         guard canSubmit else {
             errorMessage = "Teslimat bilgilerini eksiksiz doldurmalısın."
@@ -221,11 +307,10 @@ struct CheckoutView: View {
             )
         )
 
-        if ordersViewModel.lastCreatedOrder != nil {
+        if let order = ordersViewModel.lastCreatedOrder {
+            completedOrder = order
             cartViewModel.clearItems()
             await cartViewModel.loadCart()
-            onCheckoutSuccess()
-            dismiss()
         } else {
             errorMessage = ordersViewModel.errorMessage ?? "Sipariş oluşturulamadı."
         }

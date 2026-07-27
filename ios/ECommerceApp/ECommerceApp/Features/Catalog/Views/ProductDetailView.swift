@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProductDetailView: View {
     let product: Product
+    let relatedProducts: [Product]
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var isAddingToCart = false
     @State private var isFavorite = false
@@ -22,6 +23,7 @@ struct ProductDetailView: View {
                         headerSection
                         quantitySection
                         descriptionSection
+                        relatedProductsSection
                         trustBadges
                     }
                     .padding(.horizontal, LuxeTheme.horizontalPadding)
@@ -272,7 +274,40 @@ struct ProductDetailView: View {
                 .lineSpacing(4)
         }
     }
+    private var relatedProductsSection: some View {
+        let visibleProducts = relatedProducts
+            .filter { $0.id != product.id }
+            .prefix(4)
 
+        return Group {
+            if !visibleProducts.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Benzer Ürünler")
+                        .font(.headline)
+                        .foregroundStyle(LuxeTheme.charcoal)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 14) {
+                            ForEach(Array(visibleProducts)) { relatedProduct in
+                                NavigationLink {
+                                    ProductDetailView(
+                                        product: relatedProduct,
+                                        relatedProducts: relatedProducts
+                                    )
+                                } label: {
+                                    ProductRowView(product: relatedProduct)
+                                        .frame(width: 160)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+        }
+    }
+    
     private var trustBadges: some View {
         HStack(spacing: 12) {
             trustBadge(icon: "shippingbox", title: "Hızlı Teslimat")

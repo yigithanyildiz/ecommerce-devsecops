@@ -60,8 +60,12 @@ struct FavoritesView: View {
                         LazyVGrid(columns: gridColumns, spacing: 18) {
                             ForEach(viewModel.products) { product in
                                 NavigationLink {
-                                    ProductDetailView(product: product)
-                                } label: {
+                                    ProductDetailView(
+                                        product: product,
+                                        relatedProducts: viewModel.products.filter {
+                                            $0.category?.slug == product.category?.slug
+                                        }
+                                    )                                } label: {
                                     ProductRowView(product: product)
                                 }
                                 .buttonStyle(.plain)

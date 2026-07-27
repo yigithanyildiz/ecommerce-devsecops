@@ -1,6 +1,6 @@
 import Foundation
 
-struct Product:Identifiable, Decodable{
+struct Product: Identifiable, Decodable, Hashable {
     let id: String
     let name: String
     let slug: String
@@ -12,7 +12,7 @@ struct Product:Identifiable, Decodable{
     
 }
 
-struct ProductCategory: Decodable{
+struct ProductCategory: Decodable, Hashable {
     let id: String
     let name: String
     let slug: String
