@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { RefreshCcw, Search, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 
 type Customer = {
   id: string;
@@ -35,27 +35,10 @@ export function CustomersPage() {
       const response = await api.get<Customer[]>("/admin/customers");
       setCustomers(response.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Customers could not be loaded."));
+      setError(getApiErrorMessage(error, "Customers could not be loaded."));
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function getErrorMessage(error: unknown, fallback: string) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
-      if (status && message) {
-        return `${fallback} (${status}: ${message})`;
-      }
-
-      if (status) {
-        return `${fallback} (${status})`;
-      }
-    }
-
-    return fallback;
   }
 
   useEffect(() => {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
 import { RefreshCcw } from "lucide-react";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 import { StatusBadge } from "../components/StatusBadge";
 
 type Order = {
@@ -45,7 +45,7 @@ export function OrdersPage() {
       const response = await api.get<Order[]>("/admin/orders");
       setOrders(response.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Orders could not be loaded."));
+      setError(getApiErrorMessage(error, "Orders could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -78,28 +78,11 @@ export function OrdersPage() {
     } catch (error) {
       setOrders(previousOrders);
       setError(
-        getErrorMessage(error, "Order status could not be updated."),
+        getApiErrorMessage(error, "Order status could not be updated."),
       );
     } finally {
       setUpdatingOrderId(null);
     }
-  }
-
-  function getErrorMessage(error: unknown, fallback: string) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
-      if (status && message) {
-        return `${fallback} (${status}: ${message})`;
-      }
-
-      if (status) {
-        return `${fallback} (${status})`;
-      }
-    }
-
-    return fallback;
   }
 
   useEffect(() => {

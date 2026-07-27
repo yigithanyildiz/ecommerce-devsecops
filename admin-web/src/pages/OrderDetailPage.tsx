@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, PackageCheck } from "lucide-react";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 import { StatusBadge } from "../components/StatusBadge";
 
 type OrderDetail = {
@@ -54,8 +55,8 @@ export function OrderDetailPage() {
         setOrder(response.data);
         setSelectedStatus(response.data.status);
         setTrackingNumber(response.data.trackingNumber ?? "");
-      } catch {
-        setError("Order detail could not be loaded.");
+      } catch (error) {
+        setError(getApiErrorMessage(error, "Order detail could not be loaded."));
       } finally {
         setIsLoading(false);
       }
@@ -81,8 +82,8 @@ export function OrderDetailPage() {
       setOrder(response.data);
       setSelectedStatus(response.data.status);
       setTrackingNumber(response.data.trackingNumber ?? "");
-    } catch {
-      setError("Order status could not be updated.");
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Order status could not be updated."));
     } finally {
       setIsUpdatingStatus(false);
     }

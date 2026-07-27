@@ -7,13 +7,17 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { AdminService } from './admin.service';
 import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
-
+import { UpdateOrderStatusDto } from '../orders/dto/update-order-status.dto';
+import { UpdateActiveStatusDto } from './dto/update-active-status.dto';
+import { CreateAdminCategoryDto } from './dto/create-admin-category.dto';
+import { CreateAdminProductDto } from './dto/create-admin-product.dto';
+import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
+import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -31,34 +35,14 @@ export class AdminController {
   }
 
   @Post('products')
-  createProduct(
-    @Body()
-    body: {
-      name: string;
-      slug: string;
-      description?: string;
-      price: string;
-      stock: number;
-      imageUrl?: string;
-      categoryId: string;
-    },
-  ) {
+  createProduct(@Body() body: CreateAdminProductDto) {
     return this.adminService.createProduct(body);
   }
 
   @Patch('products/:productId')
   updateProduct(
     @Param('productId') productId: string,
-    @Body()
-    body: {
-      name?: string;
-      slug?: string;
-      description?: string;
-      price?: string;
-      stock?: number;
-      imageUrl?: string;
-      categoryId?: string;
-    },
+    @Body() body: UpdateAdminProductDto,
   ) {
     return this.adminService.updateProduct(productId, body);
   }
@@ -66,9 +50,9 @@ export class AdminController {
   @Patch('products/:productId/status')
   updateProductStatus(
     @Param('productId') productId: string,
-    @Body('isActive') isActive: boolean,
+    @Body() body: UpdateActiveStatusDto,
   ) {
-    return this.adminService.updateProductStatus(productId, isActive);
+    return this.adminService.updateProductStatus(productId, body.isActive);
   }
 
   @Get('orders')
@@ -84,9 +68,9 @@ export class AdminController {
   @Patch('orders/:orderId/status')
   updateOrderStatus(
     @Param('orderId') orderId: string,
-    @Body('status') status: OrderStatus,
+    @Body() body: UpdateOrderStatusDto,
   ) {
-    return this.adminService.updateOrderStatus(orderId, status);
+    return this.adminService.updateOrderStatus(orderId, body.status);
   }
 
   @Patch('orders/:orderId/fulfillment')
@@ -115,20 +99,20 @@ export class AdminController {
   @Patch('customers/:customerId/status')
   updateCustomerStatus(
     @Param('customerId') customerId: string,
-    @Body('isActive') isActive: boolean,
+    @Body() body: UpdateActiveStatusDto,
   ) {
-    return this.adminService.updateCustomerStatus(customerId, isActive);
+    return this.adminService.updateCustomerStatus(customerId, body.isActive);
   }
 
   @Post('categories')
-  createCategory(@Body() body: { name: string; slug: string }) {
+  createCategory(@Body() body: CreateAdminCategoryDto) {
     return this.adminService.createCategory(body);
   }
 
   @Patch('categories/:categoryId')
   updateCategory(
     @Param('categoryId') categoryId: string,
-    @Body() body: { name?: string; slug?: string },
+    @Body() body: UpdateAdminCategoryDto,
   ) {
     return this.adminService.updateCategory(categoryId, body);
   }
