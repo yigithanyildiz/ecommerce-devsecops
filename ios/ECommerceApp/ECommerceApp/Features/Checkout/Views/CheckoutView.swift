@@ -6,9 +6,16 @@ struct CheckoutView: View {
     @ObservedObject var cartViewModel: CartViewModel
     @ObservedObject var ordersViewModel: OrdersViewModel
 
+    let userId: String?
     let onCheckoutSuccess: () -> Void
 
     @State private var deliveryAddress = DeliveryAddress()
+    @State private var savedAddresses: [DeliveryAddress] = []
+    @State private var shouldSaveAddress = true
+    @State private var didLoadSavedAddress = false
+    @State private var showAddressSelection = false
+    @State private var showAddressEditor = false
+    @State private var editableAddress = DeliveryAddress()
     @State private var paymentMethod: PaymentMethod = .demoCard
     @State private var errorMessage: String?
     @State private var isSubmitting = false
@@ -25,6 +32,25 @@ struct CheckoutView: View {
         .background(LuxeTheme.background)
         .navigationTitle(completedOrder == nil ? "Ödeme" : "Sipariş Alındı")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showAddressSelection) {
+            CheckoutAddressSelectionView(
+                addresses: savedAddresses,
+                selectedAddressId: deliveryAddress.id,
+                onSelect: selectSavedAddress,
+                onAddNew: openNewAddressEditor
+            )
+        }
+        .sheet(isPresented: $showAddressEditor) {
+            DeliveryAddressEditorView(
+                address: $editableAddress,
+                hasSavedAddress: false,
+                onSave: saveAddressFromCheckout,
+                onClear: {}
+            )
+        }
+        .onAppear {
+            loadSavedAddressIfNeeded()
+        }
     }
 
     private var checkoutForm: some View {
@@ -153,7 +179,77 @@ struct CheckoutView: View {
 
     private var addressCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionTitle(icon: "location", title: "Teslimat Bilgileri")
+            HStack {
+                sectionTitle(icon: "location", title: "Teslimat Bilgileri")
+
+                Spacer()
+
+                if !savedAddresses.isEmpty {
+                    Button("Değiştir") {
+                        showAddressSelection = true
+                    }
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(LuxeTheme.charcoal)
+                }
+            }
+
+            if !savedAddresses.isEmpty && deliveryAddress.isValid {
+                selectedAddressCard
+            } else {
+                manualAddressFields
+            }
+        }
+        .padding(18)
+        .luxeCard()
+    }
+
+    private var selectedAddressCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: deliveryAddress.isDefault ? "star.fill" : "mappin.circle")
+                .foregroundStyle(deliveryAddress.isDefault ? LuxeTheme.success : LuxeTheme.charcoal)
+                .frame(width: 38, height: 38)
+                .background(LuxeTheme.surfaceLow)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(deliveryAddress.title)
+                        .font(.headline)
+                        .foregroundStyle(LuxeTheme.charcoal)
+
+                    if deliveryAddress.isDefault {
+                        Text("Varsayılan")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(LuxeTheme.success)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(LuxeTheme.success.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                }
+
+                Text(deliveryAddress.fullName)
+                    .font(.subheadline)
+                    .foregroundStyle(LuxeTheme.charcoal)
+
+                Text("\(deliveryAddress.city) · \(deliveryAddress.addressLine)")
+                    .font(.caption)
+                    .foregroundStyle(LuxeTheme.secondaryText)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(LuxeTheme.surfaceLow)
+        .clipShape(RoundedRectangle(cornerRadius: LuxeTheme.controlRadius, style: .continuous))
+    }
+
+    private var manualAddressFields: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            luxeTextField("Adres Başlığı", text: $deliveryAddress.title)
 
             luxeTextField("Ad Soyad", text: $deliveryAddress.fullName)
                 .textContentType(.name)
@@ -169,9 +265,16 @@ struct CheckoutView: View {
                 .padding(14)
                 .background(LuxeTheme.surfaceLow)
                 .clipShape(RoundedRectangle(cornerRadius: LuxeTheme.controlRadius, style: .continuous))
+
+            Toggle(isOn: $shouldSaveAddress) {
+                Text("Bu adresi kaydet")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(LuxeTheme.charcoal)
+            }
+            .tint(LuxeTheme.charcoal)
+            .padding(.top, 2)
         }
-        .padding(18)
-        .luxeCard()
     }
 
     private var paymentCard: some View {
@@ -308,11 +411,56 @@ struct CheckoutView: View {
         )
 
         if let order = ordersViewModel.lastCreatedOrder {
+            if shouldSaveAddress {
+                var addressToSave = deliveryAddress.trimmed
+                addressToSave.isDefault = savedAddresses.isEmpty || addressToSave.isDefault
+                DeliveryAddressStore.save(addressToSave, userId: userId)
+            }
+
             completedOrder = order
+            NotificationCenter.default.post(name: .orderDidChange, object: nil)
             cartViewModel.clearItems()
             await cartViewModel.loadCart()
         } else {
             errorMessage = ordersViewModel.errorMessage ?? "Sipariş oluşturulamadı."
         }
+    }
+
+    private func loadSavedAddressIfNeeded() {
+        guard !didLoadSavedAddress else { return }
+        didLoadSavedAddress = true
+
+        savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+
+        guard let savedAddress = DeliveryAddressStore.load(userId: userId) else {
+            return
+        }
+
+        deliveryAddress = savedAddress
+        shouldSaveAddress = true
+    }
+
+    private func selectSavedAddress(_ address: DeliveryAddress) {
+        deliveryAddress = address
+    }
+
+    private func openNewAddressEditor() {
+        showAddressSelection = false
+        editableAddress = DeliveryAddress(
+            title: savedAddresses.isEmpty ? "Ev" : "",
+            isDefault: savedAddresses.isEmpty
+        )
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            showAddressEditor = true
+        }
+    }
+
+    private func saveAddressFromCheckout() {
+        let addressToSave = editableAddress.trimmed
+        DeliveryAddressStore.save(addressToSave, userId: userId)
+        savedAddresses = DeliveryAddressStore.loadAll(userId: userId)
+        deliveryAddress = savedAddresses.first { $0.id == addressToSave.id } ?? addressToSave
+        shouldSaveAddress = false
     }
 }

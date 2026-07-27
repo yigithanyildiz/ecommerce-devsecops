@@ -4,6 +4,7 @@ struct CartView: View {
     @StateObject private var ordersViewModel: OrdersViewModel
     @State private var showCheckoutSuccess = false
     @State private var itemPendingRemoval: CartItem?
+    private let userId: String?
     private let onCheckoutSuccess: () -> Void
     private let onBrowseProducts: () -> Void
     init(
@@ -12,6 +13,7 @@ struct CartView: View {
         onBrowseProducts: @escaping () -> Void = {}
 
     ) {
+        self.userId = sessionManager.currentUser?.id
         self.onCheckoutSuccess = onCheckoutSuccess
         self.onBrowseProducts = onBrowseProducts
 
@@ -258,6 +260,7 @@ struct CartView: View {
                 CheckoutView(
                     cartViewModel: viewModel,
                     ordersViewModel: ordersViewModel,
+                    userId: userId,
                     onCheckoutSuccess: {
                         showCheckoutSuccess = true
                         onCheckoutSuccess()

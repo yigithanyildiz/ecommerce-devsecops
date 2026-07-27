@@ -124,7 +124,7 @@ struct ProductListView: View {
                             }
                             .frame(minHeight: 300, alignment: .top)
 
-                        if product.stock > 0 {
+                        if sessionManager.isAuthenticated && product.stock > 0 {
                             quickAddButton(for: product)
                                 .zIndex(2)
                         }

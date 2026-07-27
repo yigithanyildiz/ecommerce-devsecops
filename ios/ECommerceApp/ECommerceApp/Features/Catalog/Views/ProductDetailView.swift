@@ -35,7 +35,11 @@ struct ProductDetailView: View {
             bottomActionBar
         }
         .alert("Giriş gerekli", isPresented: $showLoginAlert) {
-            Button("Tamam", role: .cancel) {}
+            Button("Giriş Yap") {
+                NotificationCenter.default.post(name: .openLogin, object: nil)
+            }
+
+            Button("Vazgeç", role: .cancel) {}
         } message: {
             Text("Sepete ürün eklemek için giriş yapmalısın.")
         }
@@ -53,15 +57,17 @@ struct ProductDetailView: View {
         .navigationTitle("LUXECART")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task {
-                        await toggleFavorite()
+            if sessionManager.isAuthenticated {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await toggleFavorite()
+                        }
+                    } label: {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
                     }
-                } label: {
-                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                    .disabled(isUpdatingFavorite)
                 }
-                .disabled(isUpdatingFavorite)
             }
         }
         .task {
@@ -98,12 +104,14 @@ struct ProductDetailView: View {
                     accessToken: accessToken
                 )
                 isFavorite = false
+                NotificationCenter.default.post(name: .favoriteDidChange, object: nil)
             } else {
                 try await favoriteService.addFavorite(
                     productId: product.id,
                     accessToken: accessToken
                 )
                 isFavorite = true
+                NotificationCenter.default.post(name: .favoriteDidChange, object: nil)
             }
         } catch {
             handle(error)
