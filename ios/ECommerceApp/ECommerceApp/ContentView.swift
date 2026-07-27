@@ -11,7 +11,10 @@ enum AppTab {
 
 extension Notification.Name {
     static let cartDidChange = Notification.Name("cartDidChange")
+    static let favoriteDidChange = Notification.Name("favoriteDidChange")
+    static let orderDidChange = Notification.Name("orderDidChange")
     static let openCart = Notification.Name("openCart")
+    static let openLogin = Notification.Name("openLogin")
 }
 
 struct ContentView: View {
@@ -69,11 +72,18 @@ struct ContentView: View {
                 .tag(AppTab.orders)
 
                 ProfileView(
+                    sessionManager: sessionManager,
                     onOpenOrders: {
                         selectedTab = .orders
                     },
                     onOpenCart: {
                         selectedTab = .cart
+                    },
+                    onOpenFavorites: {
+                        selectedTab = .favorites
+                    },
+                    onOpenCatalog: {
+                        selectedTab = .catalog
                     }
                 )
                 .tabItem {
@@ -94,6 +104,7 @@ struct ContentView: View {
                     .tag(AppTab.catalog)
             }
         }
+        .id(sessionManager.isAuthenticated ? "authenticated-tabs" : "guest-tabs")
         .tint(LuxeTheme.charcoal)
         .onAppear {
             selectedTab = sessionManager.isAuthenticated ? .catalog : .login
@@ -110,6 +121,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openCart)) { _ in
             if sessionManager.isAuthenticated {
                 selectedTab = .cart
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openLogin)) { _ in
+            if !sessionManager.isAuthenticated {
+                selectedTab = .login
             }
         }
         .onChange(of: sessionManager.isAuthenticated) { _, isAuthenticated in

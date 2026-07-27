@@ -57,12 +57,14 @@ final class FavoritesViewModel: ObservableObject {
                     accessToken: accessToken
                 )
                 products.removeAll { $0.id == product.id }
+                NotificationCenter.default.post(name: .favoriteDidChange, object: nil)
             } else {
                 try await favoriteService.addFavorite(
                     productId: product.id,
                     accessToken: accessToken
                 )
                 products.insert(product, at: 0)
+                NotificationCenter.default.post(name: .favoriteDidChange, object: nil)
             }
         } catch {
             handle(error)
