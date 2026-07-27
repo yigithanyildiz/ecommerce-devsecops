@@ -161,6 +161,7 @@ struct ProfileView: View {
             .sheet(isPresented: $showDeliveryAddresses) {
                 DeliveryAddressesView(
                     userId: sessionManager.currentUser?.id,
+                    accessToken: sessionManager.accessToken,
                     onChange: loadSavedDeliveryAddresses
                 )
             }

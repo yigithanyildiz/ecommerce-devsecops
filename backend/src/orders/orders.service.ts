@@ -48,15 +48,22 @@ export class OrdersService {
         new Prisma.Decimal(0),
       );
 
+      const shippingAddress = await this.resolveShippingAddress(
+        tx,
+        userId,
+        checkoutDto,
+      );
+
       const order = await tx.order.create({
         data: {
           userId,
           status: OrderStatus.PAID,
           totalAmount,
-          recipientName: checkoutDto.recipientName.trim(),
-          phone: checkoutDto.phone.trim(),
-          shippingCity: checkoutDto.shippingCity.trim(),
-          shippingAddressLine: checkoutDto.shippingAddressLine.trim(),
+          addressId: shippingAddress.addressId,
+          recipientName: shippingAddress.recipientName,
+          phone: shippingAddress.phone,
+          shippingCity: shippingAddress.shippingCity,
+          shippingAddressLine: shippingAddress.shippingAddressLine,
           paymentMethod:
             checkoutDto.paymentMethod === 'CASH_ON_DELIVERY'
               ? PaymentMethod.CASH_ON_DELIVERY
@@ -107,6 +114,50 @@ export class OrdersService {
 
       return order;
     });
+  }
+
+  private async resolveShippingAddress(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    checkoutDto: CheckoutDto,
+  ) {
+    if (checkoutDto.addressId) {
+      const address = await tx.address.findFirst({
+        where: {
+          id: checkoutDto.addressId,
+          userId,
+        },
+      });
+
+      if (!address) {
+        throw new NotFoundException('Address not found');
+      }
+
+      return {
+        addressId: address.id,
+        recipientName: address.recipientName,
+        phone: address.phone,
+        shippingCity: address.city,
+        shippingAddressLine: address.addressLine,
+      };
+    }
+
+    if (
+      !checkoutDto.recipientName ||
+      !checkoutDto.phone ||
+      !checkoutDto.shippingCity ||
+      !checkoutDto.shippingAddressLine
+    ) {
+      throw new BadRequestException('Shipping address is required');
+    }
+
+    return {
+      addressId: null,
+      recipientName: checkoutDto.recipientName.trim(),
+      phone: checkoutDto.phone.trim(),
+      shippingCity: checkoutDto.shippingCity.trim(),
+      shippingAddressLine: checkoutDto.shippingAddressLine.trim(),
+    };
   }
 
   async findAll(userId: string) {
