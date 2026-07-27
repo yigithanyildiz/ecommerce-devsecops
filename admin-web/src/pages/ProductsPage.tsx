@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { RefreshCcw } from "lucide-react";
 import { api } from "../api/client";
+import { getApiErrorMessage } from "../api/errors";
 
 type Product = {
   id: string;
@@ -52,7 +52,7 @@ export function ProductsPage() {
       const response = await api.get<Product[]>("/admin/products");
       setProducts(response.data);
     } catch (error) {
-      setError(getErrorMessage(error, "Products could not be loaded."));
+      setError(getApiErrorMessage(error, "Products could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +70,7 @@ export function ProductsPage() {
         }));
       }
     } catch (error) {
-      setError(getErrorMessage(error, "Categories could not be loaded."));
+      setError(getApiErrorMessage(error, "Categories could not be loaded."));
     }
   }
 
@@ -120,15 +120,23 @@ export function ProductsPage() {
   async function saveProduct(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    const validationError = validateProductForm();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSaving(true);
 
     const payload = {
-      name: form.name,
-      slug: form.slug,
-      description: form.description,
-      price: form.price,
+      name: form.name.trim(),
+      slug: form.slug.trim(),
+      description: form.description.trim(),
+      price: form.price.trim(),
       stock: Number(form.stock),
-      imageUrl: form.imageUrl,
+      imageUrl: form.imageUrl.trim(),
       categoryId: form.categoryId,
     };
 
@@ -143,7 +151,7 @@ export function ProductsPage() {
       await loadProducts();
     } catch (error) {
       setError(
-        getErrorMessage(
+        getApiErrorMessage(
           error,
           editingProductId
             ? "Product could not be updated."
@@ -155,6 +163,33 @@ export function ProductsPage() {
     }
   }
 
+  function validateProductForm() {
+    const price = Number(form.price);
+    const stock = Number(form.stock);
+
+    if (form.name.trim().length < 2) {
+      return "Product name must be at least 2 characters.";
+    }
+
+    if (form.slug.trim().length < 2) {
+      return "Product slug must be at least 2 characters.";
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      return "Product price must be a valid positive number.";
+    }
+
+    if (!Number.isInteger(stock) || stock < 0) {
+      return "Product stock must be a valid whole number.";
+    }
+
+    if (!form.categoryId) {
+      return "Please select a category.";
+    }
+
+    return "";
+  }
+
   async function toggleProductStatus(product: Product) {
     setError("");
 
@@ -164,25 +199,10 @@ export function ProductsPage() {
       });
       await loadProducts();
     } catch (error) {
-      setError(getErrorMessage(error, "Product status could not be updated."));
+      setError(
+        getApiErrorMessage(error, "Product status could not be updated."),
+      );
     }
-  }
-
-  function getErrorMessage(error: unknown, fallback: string) {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.message;
-
-      if (status && message) {
-        return `${fallback} (${status}: ${message})`;
-      }
-
-      if (status) {
-        return `${fallback} (${status})`;
-      }
-    }
-
-    return fallback;
   }
 
   return (

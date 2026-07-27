@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrderStatus } from '@prisma/client';
 import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
+import { CreateAdminCategoryDto } from './dto/create-admin-category.dto';
+import { CreateAdminProductDto } from './dto/create-admin-product.dto';
+import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
+import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -148,11 +156,11 @@ export class AdminService {
         id: orderId,
       },
     });
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     return this.prisma.order.update({
       where: {
         id: orderId,
@@ -354,43 +362,28 @@ export class AdminService {
     return this.toCustomerSummary(updatedCustomer);
   }
 
-  async createProduct(data: {
-    name: string;
-    slug: string;
-    description?: string;
-    price: string;
-    stock: number;
-    imageUrl?: string;
-    categoryId: string;
-  }) {
-    return this.prisma.product.create({
-      data: {
-        name: data.name,
-        slug: data.slug,
-        description: data.description || null,
-        price: data.price,
-        stock: data.stock,
-        imageUrl: data.imageUrl || null,
-        categoryId: data.categoryId,
-        isActive: true,
-      },
-      include: {
-        category: true,
-      },
-    });
+  async createProduct(data: CreateAdminProductDto) {
+    try {
+      return await this.prisma.product.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+          description: data.description || null,
+          price: data.price,
+          stock: data.stock,
+          imageUrl: data.imageUrl || null,
+          categoryId: data.categoryId,
+          isActive: true,
+        },
+        include: {
+          category: true,
+        },
+      });
+    } catch (error) {
+      this.handleAdminWriteError(error, 'Product slug already exists');
+    }
   }
-  async updateProduct(
-    productId: string,
-    data: {
-      name?: string;
-      slug?: string;
-      description?: string;
-      price?: string;
-      stock?: number;
-      imageUrl?: string;
-      categoryId?: string;
-    },
-  ) {
+  async updateProduct(productId: string, data: UpdateAdminProductDto) {
     const product = await this.prisma.product.findUnique({
       where: {
         id: productId,
@@ -400,28 +393,35 @@ export class AdminService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
-
-    return this.prisma.product.update({
-      where: {
-        id: productId,
-      },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.slug !== undefined ? { slug: data.slug } : {}),
-        ...(data.description !== undefined
-          ? { description: data.description || null }
-          : {}),
-        ...(data.price !== undefined ? { price: data.price } : {}),
-        ...(data.stock !== undefined ? { stock: data.stock } : {}),
-        ...(data.imageUrl !== undefined ? { imageUrl: data.imageUrl || null } : {}),
-        ...(data.categoryId !== undefined ? { categoryId: data.categoryId } : {}),
-      },
-      include: {
-        category: true,
-      },
-    });
+    try {
+      return await this.prisma.product.update({
+        where: {
+          id: productId,
+        },
+        data: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.slug !== undefined ? { slug: data.slug } : {}),
+          ...(data.description !== undefined
+            ? { description: data.description || null }
+            : {}),
+          ...(data.price !== undefined ? { price: data.price } : {}),
+          ...(data.stock !== undefined ? { stock: data.stock } : {}),
+          ...(data.imageUrl !== undefined
+            ? { imageUrl: data.imageUrl || null }
+            : {}),
+          ...(data.categoryId !== undefined
+            ? { categoryId: data.categoryId }
+            : {}),
+        },
+        include: {
+          category: true,
+        },
+      });
+    } catch (error) {
+      this.handleAdminWriteError(error, 'Product slug already exists');
+    }
   }
-  
+
   async updateProductStatus(productId: string, isActive: boolean) {
     const product = await this.prisma.product.findUnique({
       where: {
@@ -445,26 +445,27 @@ export class AdminService {
       },
     });
   }
-  async createCategory(data: { name: string; slug: string }) {
-    return this.prisma.category.create({
-      data: {
-        name: data.name,
-        slug: data.slug,
-      },
-      include: {
-        _count: {
-          select: {
-            products: true,
+  async createCategory(data: CreateAdminCategoryDto) {
+    try {
+      return await this.prisma.category.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+        },
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      this.handleAdminWriteError(error, 'Category slug already exists');
+    }
   }
 
-  async updateCategory(
-    categoryId: string,
-    data: { name?: string; slug?: string },
-  ) {
+  async updateCategory(categoryId: string, data: UpdateAdminCategoryDto) {
     const category = await this.prisma.category.findUnique({
       where: {
         id: categoryId,
@@ -475,24 +476,37 @@ export class AdminService {
       throw new NotFoundException('Category not found');
     }
 
-    return this.prisma.category.update({
-      where: {
-        id: categoryId,
-      },
-      data: {
-        ...(data.name !== undefined ? { name: data.name } : {}),
-        ...(data.slug !== undefined ? { slug: data.slug } : {}),
-      },
-      include: {
-        _count: {
-          select: {
-            products: true,
+    try {
+      return await this.prisma.category.update({
+        where: {
+          id: categoryId,
+        },
+        data: {
+          ...(data.name !== undefined ? { name: data.name } : {}),
+          ...(data.slug !== undefined ? { slug: data.slug } : {}),
+        },
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      this.handleAdminWriteError(error, 'Category slug already exists');
+    }
   }
+  private handleAdminWriteError(error: unknown, message: string): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException(message);
+    }
 
+    throw error;
+  }
   private toCustomerSummary(customer: {
     id: string;
     name: string;

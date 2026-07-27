@@ -9,6 +9,7 @@ final class CartViewModel: ObservableObject {
 
     private let cartService: CartServicing
     private let sessionManager: SessionManager
+    private let freeShippingThreshold = 100.0
 
     init(
         cartService: CartServicing = CartService(),
@@ -35,11 +36,24 @@ final class CartViewModel: ObservableObject {
         
     }
     var shippingPrice: Double {
-        items.isEmpty ? 0 : 4.99
+        items.isEmpty || qualifiesForFreeShipping ? 0 : 4.99
     }
 
     var grandTotal: Double {
         totalPrice + shippingPrice
+    }
+
+    var qualifiesForFreeShipping: Bool {
+        totalPrice >= freeShippingThreshold
+    }
+
+    var remainingForFreeShipping: Double {
+        max(freeShippingThreshold - totalPrice, 0)
+    }
+
+    var freeShippingProgress: Double {
+        guard freeShippingThreshold > 0 else { return 1 }
+        return min(totalPrice / freeShippingThreshold, 1)
     }
     func clearItems() {
         guard let cart else { return }

@@ -3,6 +3,7 @@ struct CartView: View {
     @StateObject private var viewModel: CartViewModel
     @StateObject private var ordersViewModel: OrdersViewModel
     @State private var showCheckoutSuccess = false
+    @State private var itemPendingRemoval: CartItem?
     private let onCheckoutSuccess: () -> Void
     private let onBrowseProducts: () -> Void
     init(
@@ -84,6 +85,29 @@ struct CartView: View {
             } message: {
                 Text("Siparişini Siparişler sekmesinden takip edebilirsin.")
             }
+            .confirmationDialog(
+                "Ürünü sepetten kaldırmak istiyor musun?",
+                isPresented: Binding(
+                    get: { itemPendingRemoval != nil },
+                    set: { if !$0 { itemPendingRemoval = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Sepetten Kaldır", role: .destructive) {
+                    guard let itemPendingRemoval else { return }
+
+                    Task {
+                        await viewModel.removeItem(item: itemPendingRemoval)
+                        self.itemPendingRemoval = nil
+                    }
+                }
+
+                Button("Vazgeç", role: .cancel) {
+                    itemPendingRemoval = nil
+                }
+            } message: {
+                Text(itemPendingRemoval?.product.name ?? "")
+            }
             .navigationTitle("Sepet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -143,11 +167,15 @@ struct CartView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        Task {
-                            await viewModel.updateQuantity(
-                                item: item,
-                                quantity: item.quantity - 1
-                            )
+                        if item.quantity <= 1 {
+                            itemPendingRemoval = item
+                        } else {
+                            Task {
+                                await viewModel.updateQuantity(
+                                    item: item,
+                                    quantity: item.quantity - 1
+                                )
+                            }
                         }
                     } label: {
                         Image(systemName: "minus")
@@ -180,9 +208,7 @@ struct CartView: View {
                     Spacer()
 
                     Button(role: .destructive) {
-                        Task {
-                            await viewModel.removeItem(item: item)
-                        }
+                        itemPendingRemoval = item
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -207,8 +233,13 @@ struct CartView: View {
                 .font(.headline)
                 .foregroundStyle(LuxeTheme.charcoal)
 
+            freeShippingCard
+
             summaryRow("Ara Toplam", viewModel.totalPrice.usdCurrencyText)
-            summaryRow("Kargo", viewModel.shippingPrice.usdCurrencyText)
+            summaryRow(
+                "Kargo",
+                viewModel.shippingPrice == 0 ? "Ücretsiz" : viewModel.shippingPrice.usdCurrencyText
+            )
 
             Divider()
 
@@ -246,6 +277,30 @@ struct CartView: View {
         }
         .padding(20)
         .luxeCard()
+    }
+
+    private var freeShippingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: viewModel.qualifiesForFreeShipping ? "checkmark.circle.fill" : "shippingbox")
+                    .foregroundStyle(viewModel.qualifiesForFreeShipping ? LuxeTheme.success : LuxeTheme.charcoal)
+
+                Text(
+                    viewModel.qualifiesForFreeShipping
+                        ? "Ücretsiz kargo kazandın"
+                        : "\(viewModel.remainingForFreeShipping.usdCurrencyText) daha ekle, kargo ücretsiz olsun"
+                )
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(LuxeTheme.charcoal)
+            }
+
+            ProgressView(value: viewModel.freeShippingProgress)
+                .tint(viewModel.qualifiesForFreeShipping ? LuxeTheme.success : LuxeTheme.charcoal)
+        }
+        .padding(12)
+        .background(LuxeTheme.surfaceLow)
+        .clipShape(RoundedRectangle(cornerRadius: LuxeTheme.controlRadius, style: .continuous))
     }
 
     private func summaryRow(_ title: String, _ value: String) -> some View {

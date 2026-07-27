@@ -156,11 +156,11 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
     });
-  
+
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-  
+
     return this.prisma.order.update({
       where: { id: orderId },
       data: { status },
