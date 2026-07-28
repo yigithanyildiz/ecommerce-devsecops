@@ -180,4 +180,5 @@ struct CategoryLandingView: View {
             endPoint: .bottomTrailing
         )
     }
+
 }

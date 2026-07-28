@@ -5,6 +5,7 @@ import Combine
 final class SessionManager: ObservableObject{
     @Published private(set) var accessToken: String?
     @Published private(set) var currentUser: AuthUser?
+    @Published var sessionAlertMessage: String?
     private let accessTokenKey = "accessToken"
     private let currentUserKey = "currentUser"
     init(){
@@ -29,15 +30,23 @@ final class SessionManager: ObservableObject{
         }
     
     func signOut() {
-           accessToken = nil
-           currentUser = nil
-           UserDefaults.standard.removeObject(forKey: accessTokenKey)
-           UserDefaults.standard.removeObject(forKey: currentUserKey)
-       }
+        clearSession()
+    }
+
+    func expireSession() {
+        clearSession()
+        sessionAlertMessage = "Oturum süren doldu. Lütfen tekrar giriş yap."
+    }
+
+    private func clearSession() {
+        accessToken = nil
+        currentUser = nil
+        UserDefaults.standard.removeObject(forKey: accessTokenKey)
+        UserDefaults.standard.removeObject(forKey: currentUserKey)
+    }
     
     func saveAccessToken(_ token: String){
         accessToken = token
         UserDefaults.standard.set(token, forKey: accessTokenKey)
     }
 }
-
