@@ -43,16 +43,42 @@ type DashboardStats = {
   }>;
 };
 
+type StorefrontConfig = {
+  id: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImageUrl?: string | null;
+  heroTargetCategorySlug?: string | null;
+};
+
+type AdminCategory = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [storefront, setStorefront] = useState<StorefrontConfig | null>(null);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [error, setError] = useState("");
+  const [storefrontMessage, setStorefrontMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingStorefront, setIsSavingStorefront] = useState(false);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const response = await api.get<DashboardStats>("/admin/dashboard");
-        setStats(response.data);
+        const [dashboardResponse, storefrontResponse, categoriesResponse] =
+          await Promise.all([
+          api.get<DashboardStats>("/admin/dashboard"),
+          api.get<StorefrontConfig>("/admin/storefront"),
+            api.get<AdminCategory[]>("/admin/categories"),
+        ]);
+        setStats(dashboardResponse.data);
+        setStorefront(storefrontResponse.data);
+        setCategories(categoriesResponse.data);
       } catch {
         setError("Dashboard verileri yüklenemedi.");
       } finally {
@@ -62,6 +88,31 @@ export function DashboardPage() {
 
     loadDashboard();
   }, []);
+
+  async function saveStorefront() {
+    if (!storefront) {
+      return;
+    }
+
+    setIsSavingStorefront(true);
+    setStorefrontMessage("");
+
+    try {
+      const response = await api.patch<StorefrontConfig>("/admin/storefront", {
+        heroEyebrow: storefront.heroEyebrow,
+        heroTitle: storefront.heroTitle,
+        heroSubtitle: storefront.heroSubtitle,
+        heroImageUrl: storefront.heroImageUrl ?? "",
+        heroTargetCategorySlug: storefront.heroTargetCategorySlug ?? "",
+      });
+      setStorefront(response.data);
+      setStorefrontMessage("Hero card updated.");
+    } catch {
+      setStorefrontMessage("Hero card could not be updated.");
+    } finally {
+      setIsSavingStorefront(false);
+    }
+  }
 
   const formattedRevenue = stats
     ? Number(stats.totalRevenue).toLocaleString("en-US", {
@@ -127,6 +178,125 @@ export function DashboardPage() {
               helper="No stock"
             />
           </div>
+
+          {storefront && (
+            <section className="grid gap-5 rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)] xl:grid-cols-[minmax(0,1fr)_420px]">
+              <div>
+                <div className="mb-5">
+                  <h2 className="text-lg font-bold text-[#1c1b1b]">
+                    Mobile Hero Card
+                  </h2>
+                  <p className="mt-1 text-sm text-[#444748]">
+                    Controls the collection card on the iOS products screen.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    value={storefront.heroEyebrow}
+                    onChange={(event) =>
+                      setStorefront({
+                        ...storefront,
+                        heroEyebrow: event.target.value,
+                      })
+                    }
+                    className="rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold outline-none"
+                    placeholder="Eyebrow"
+                  />
+                  <input
+                    value={storefront.heroTitle}
+                    onChange={(event) =>
+                      setStorefront({
+                        ...storefront,
+                        heroTitle: event.target.value,
+                      })
+                    }
+                    className="rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold outline-none"
+                    placeholder="Title"
+                  />
+                  <input
+                    value={storefront.heroImageUrl ?? ""}
+                    onChange={(event) =>
+                      setStorefront({
+                        ...storefront,
+                        heroImageUrl: event.target.value,
+                      })
+                    }
+                    className="rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold outline-none sm:col-span-2"
+                    placeholder="Image URL"
+                  />
+                  <select
+                    value={storefront.heroTargetCategorySlug ?? ""}
+                    onChange={(event) =>
+                      setStorefront({
+                        ...storefront,
+                        heroTargetCategorySlug: event.target.value || null,
+                      })
+                    }
+                    className="rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold outline-none sm:col-span-2"
+                  >
+                    <option value="">No target category</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.slug}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <textarea
+                    value={storefront.heroSubtitle}
+                    onChange={(event) =>
+                      setStorefront({
+                        ...storefront,
+                        heroSubtitle: event.target.value,
+                      })
+                    }
+                    className="min-h-24 rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold outline-none sm:col-span-2"
+                    placeholder="Subtitle"
+                  />
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={saveStorefront}
+                    disabled={isSavingStorefront}
+                    className="rounded-full bg-[#1c1b1b] px-5 py-3 text-sm font-bold text-white transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSavingStorefront ? "Saving..." : "Save Hero"}
+                  </button>
+
+                  {storefrontMessage && (
+                    <p className="text-sm font-semibold text-[#444748]">
+                      {storefrontMessage}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl bg-[#1c1b1b] shadow-[0_18px_40px_rgba(26,26,26,0.14)]">
+                <div className="relative min-h-72 p-6">
+                  {storefront.heroImageUrl && (
+                    <img
+                      src={storefront.heroImageUrl}
+                      alt={storefront.heroTitle}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/30 to-black/70" />
+                  <div className="relative flex min-h-60 flex-col justify-end">
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/70">
+                      {storefront.heroEyebrow}
+                    </p>
+                    <h3 className="mt-3 max-w-xs text-4xl font-bold leading-tight text-white">
+                      {storefront.heroTitle}
+                    </h3>
+                    <p className="mt-3 max-w-sm text-sm font-medium text-white/80">
+                      {storefront.heroSubtitle}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
             <section className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">

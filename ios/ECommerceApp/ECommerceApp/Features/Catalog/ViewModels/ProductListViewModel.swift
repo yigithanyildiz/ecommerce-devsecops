@@ -31,6 +31,7 @@ final class ProductListViewModel: ObservableObject{
     @Published var selectedCategorySlug: String?
     @Published var showsOnlyInStock = false
     @Published var sortOption: ProductSortOption = .newest
+    @Published private(set) var storefrontConfig: StorefrontConfig = .fallback
     private let productService: ProductServicing
     init(productService: ProductServicing = ProductService()){
         self.productService = productService
@@ -88,7 +89,11 @@ final class ProductListViewModel: ObservableObject{
         errorMessage = nil
 
         do {
-            products  = try await productService.fetchProducts()
+            async let fetchedProducts = productService.fetchProducts()
+            async let fetchedStorefrontConfig = productService.fetchStorefrontConfig()
+
+            products = try await fetchedProducts
+            storefrontConfig = (try? await fetchedStorefrontConfig) ?? .fallback
             
         } catch {
             errorMessage = error.localizedDescription

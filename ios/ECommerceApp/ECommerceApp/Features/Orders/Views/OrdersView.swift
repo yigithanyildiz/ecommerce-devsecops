@@ -67,7 +67,12 @@ struct OrdersView: View {
                         VStack(spacing: 14) {
                             ForEach(viewModel.orders) { order in
                                 NavigationLink {
-                                    OrderDetailView(order: order)
+                                    OrderDetailView(
+                                        order: order,
+                                        sessionManager: viewModel.sessionManager
+                                    ) { updatedOrder in
+                                        viewModel.replaceOrder(updatedOrder)
+                                    }
                                 } label: {
                                     orderCard(order)
                                 }

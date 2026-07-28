@@ -4,6 +4,7 @@ protocol OrderServicing {
     func checkout(request: CheckoutRequest, accessToken: String) async throws -> Order
     func fetchOrders(accessToken: String) async throws -> [Order]
     func fetchOrder(id: String, accessToken: String) async throws -> Order
+    func cancelOrder(id: String, accessToken: String) async throws -> Order
 }
 
 final class OrderService: OrderServicing {
@@ -31,6 +32,13 @@ final class OrderService: OrderServicing {
     func fetchOrder(id: String, accessToken: String) async throws -> Order {
         try await apiClient.authenticatedGet(
             "orders/\(id)",
+            accessToken: accessToken
+        )
+    }
+
+    func cancelOrder(id: String, accessToken: String) async throws -> Order {
+        try await apiClient.authenticatedPatch(
+            "orders/\(id)/cancel",
             accessToken: accessToken
         )
     }

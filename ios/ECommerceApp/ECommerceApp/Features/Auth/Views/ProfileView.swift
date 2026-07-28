@@ -243,7 +243,10 @@ struct ProfileView: View {
 
             if let lastOrder = dashboardViewModel.lastOrder {
                 NavigationLink {
-                    OrderDetailView(order: lastOrder)
+                    OrderDetailView(
+                        order: lastOrder,
+                        sessionManager: sessionManager
+                    )
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "shippingbox")

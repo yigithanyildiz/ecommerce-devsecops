@@ -151,3 +151,14 @@ model OrderItem {
 
   createdAt DateTime @default(now())
 }
+
+model StorefrontConfig {
+  id           String   @id @default("default")
+  heroEyebrow  String   @default("NEW SEASON")
+  heroTitle    String   @default("The Minimalist Collection")
+  heroSubtitle String   @default("Sessiz lüks, seçili ürünler ve rafine alışveriş deneyimi.")
+  heroImageUrl String?
+  heroTargetCategorySlug String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

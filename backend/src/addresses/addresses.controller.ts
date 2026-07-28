@@ -38,10 +38,7 @@ export class AddressesController {
     @Req() request: AuthenticatedRequest,
     @Body() createAddressDto: CreateAddressDto,
   ) {
-    return this.addressesService.create(
-      request.user.userId,
-      createAddressDto,
-    );
+    return this.addressesService.create(request.user.userId, createAddressDto);
   }
 
   @Patch(':id')
@@ -66,10 +63,7 @@ export class AddressesController {
   }
 
   @Delete(':id')
-  remove(
-    @Req() request: AuthenticatedRequest,
-    @Param('id') addressId: string,
-  ) {
+  remove(@Req() request: AuthenticatedRequest, @Param('id') addressId: string) {
     return this.addressesService.remove(request.user.userId, addressId);
   }
 }

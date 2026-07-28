@@ -74,6 +74,20 @@ async function main() {
       categoryId: clothing.id,
     },
   });
+
+  await prisma.storefrontConfig.upsert({
+    where: { id: 'default' },
+    update: {},
+    create: {
+      id: 'default',
+      heroEyebrow: 'NEW SEASON',
+      heroTitle: 'The Minimalist Collection',
+      heroSubtitle: 'Sessiz lüks, seçili ürünler ve rafine alışveriş deneyimi.',
+      heroImageUrl:
+        'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=1200',
+      heroTargetCategorySlug: 'clothing',
+    },
+  });
 }
 
 main()

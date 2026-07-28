@@ -61,6 +61,10 @@ extension Order {
             return status
         }
     }
+
+    var canBeCancelled: Bool {
+        ["PENDING", "PAID", "PREPARING"].contains(status)
+    }
 }
 
 struct OrderItem: Identifiable, Decodable {
