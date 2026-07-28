@@ -9,6 +9,7 @@ struct ProductListView: View {
     @State private var toastMessage: String?
     @State private var showLoginAlert = false
     @State private var selectedProduct: Product?
+    @State private var selectedCategoryLanding: CategoryLanding?
     private let cartService: CartServicing = CartService()
     private let gridColumns = [
         GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 14)
@@ -94,6 +95,12 @@ struct ProductListView: View {
                     relatedProducts: relatedProducts(for: product)
                 )
             }
+            .navigationDestination(item: $selectedCategoryLanding) { landing in
+                CategoryLandingView(
+                    landing: landing,
+                    relatedProducts: relatedProducts(for:)
+                )
+            }
         }
     }
 
@@ -175,40 +182,128 @@ struct ProductListView: View {
         }
     }
 
+    @ViewBuilder
     private var heroSection: some View {
+        let config = viewModel.storefrontConfig
+
         VStack(alignment: .leading, spacing: 14) {
-            Text("NEW SEASON")
+            Text(config.heroEyebrow)
                 .font(.caption)
                 .fontWeight(.bold)
                 .tracking(1.6)
                 .foregroundStyle(LuxeTheme.secondaryText)
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("The Minimalist Collection")
-                    .font(.system(size: 32, weight: .bold, design: .default))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
+            Button {
+                openHeroTarget(config)
+            } label: {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(config.heroTitle)
+                        .font(.system(size: 32, weight: .bold, design: .default))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
 
-                Text("Sessiz lüks, seçili ürünler ve rafine alışveriş deneyimi.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.84))
-                    .lineLimit(2)
+                    Text(config.heroSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.84))
+                        .lineLimit(2)
+
+                    if let targetTitle = heroTargetTitle(for: config) {
+                        Label(targetTitle, systemImage: "arrow.right")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.white.opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 220, alignment: .bottomLeading)
+                .padding(22)
+                .background {
+                    heroBackground(imageUrl: config.heroImageUrl)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: LuxeTheme.charcoal.opacity(0.10), radius: 24, x: 0, y: 14)
             }
-            .frame(maxWidth: .infinity, minHeight: 220, alignment: .bottomLeading)
-            .padding(22)
-            .background {
-                LinearGradient(
-                    colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: LuxeTheme.charcoal.opacity(0.10), radius: 24, x: 0, y: 14)
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, LuxeTheme.horizontalPadding)
         .padding(.top, 14)
         .padding(.bottom, 18)
+    }
+
+    private func openHeroTarget(_ config: StorefrontConfig) {
+        guard let slug = config.heroTargetCategorySlug,
+              let category = viewModel.categories.first(where: { $0.slug == slug }) else {
+            return
+        }
+
+        selectedCategoryLanding = CategoryLanding(
+            category: category,
+            products: viewModel.products.filter { $0.category?.slug == slug },
+            storefrontConfig: config
+        )
+    }
+
+    private func heroTargetTitle(for config: StorefrontConfig) -> String? {
+        guard let slug = config.heroTargetCategorySlug,
+              let category = viewModel.categories.first(where: { $0.slug == slug }) else {
+            return nil
+        }
+
+        return "\(category.name) koleksiyonunu gör"
+    }
+
+    @ViewBuilder
+    private func heroBackground(imageUrl: String?) -> some View {
+        if let imageUrl,
+           let url = URL(string: imageUrl) {
+            ZStack {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        LinearGradient(
+                            colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .failure:
+                        LinearGradient(
+                            colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    @unknown default:
+                        LinearGradient(
+                            colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
+
+                LinearGradient(
+                    colors: [
+                        LuxeTheme.charcoal.opacity(0.72),
+                        LuxeTheme.charcoal.opacity(0.18),
+                        LuxeTheme.charcoal.opacity(0.82)
+                    ],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+            }
+        } else {
+            LinearGradient(
+                colors: [LuxeTheme.charcoal.opacity(0.92), LuxeTheme.charcoal.opacity(0.68)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
     }
 
     private var categoryFilter: some View {

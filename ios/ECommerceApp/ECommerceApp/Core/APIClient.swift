@@ -72,6 +72,19 @@ final class APIClient {
         return try await send(request)
     }
 
+    func authenticatedPatch<Response: Decodable>(
+        _ path: String,
+        accessToken: String
+    ) async throws -> Response {
+        let url = baseURL.appendingPathComponent(path)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        return try await send(request)
+    }
+
     func authenticatedDelete<Response: Decodable>(
         _ path: String,
         accessToken: String

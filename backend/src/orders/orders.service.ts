@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,6 +11,29 @@ import { CheckoutDto } from './dto/checkout.dto';
 @Injectable()
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly orderInclude = {
+    items: {
+      include: {
+        product: {
+          select: {
+            imageUrl: true,
+          },
+        },
+      },
+    },
+  } satisfies Prisma.OrderInclude;
+
+  private readonly adminOrderInclude = {
+    ...this.orderInclude,
+    user: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+  } satisfies Prisma.OrderInclude;
 
   async checkout(userId: string, checkoutDto: CheckoutDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -84,17 +108,7 @@ export class OrdersService {
             }),
           },
         },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  imageUrl: true,
-                },
-              },
-            },
-          },
-        },
+        include: this.orderInclude,
       });
 
       for (const item of cart.items) {
@@ -164,17 +178,7 @@ export class OrdersService {
     return this.prisma.order.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                imageUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: this.orderInclude,
     });
   }
 
@@ -184,17 +188,7 @@ export class OrdersService {
         id: orderId,
         userId,
       },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                imageUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: this.orderInclude,
     });
 
     if (!order) {
@@ -203,29 +197,72 @@ export class OrdersService {
 
     return order;
   }
-  async updateStatus(orderId: string, status: OrderStatus) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
-    });
+  async cancel(userId: string, orderId: string) {
+    return this.updateStatus(orderId, OrderStatus.CANCELLED, { userId });
+  }
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+  async updateStatus(
+    orderId: string,
+    status: OrderStatus,
+    options: {
+      includeUser?: boolean;
+      userId?: string;
+      trackingNumber?: string | null;
+    } = {},
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
+          ...(options.userId ? { userId: options.userId } : {}),
+        },
+        include: {
+          items: true,
+        },
+      });
 
-    return this.prisma.order.update({
-      where: { id: orderId },
-      data: { status },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                imageUrl: true,
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      if (order.status === OrderStatus.CANCELLED && status !== order.status) {
+        throw new ConflictException('Cancelled order cannot be reopened');
+      }
+
+      if (
+        status === OrderStatus.CANCELLED &&
+        (
+          [OrderStatus.SHIPPED, OrderStatus.DELIVERED] as OrderStatus[]
+        ).includes(order.status)
+      ) {
+        throw new ConflictException('Order can no longer be cancelled');
+      }
+
+      if (status === OrderStatus.CANCELLED && order.status !== status) {
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              stock: {
+                increment: item.quantity,
               },
             },
-          },
+          });
+        }
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          status,
+          ...(options.trackingNumber !== undefined
+            ? { trackingNumber: options.trackingNumber }
+            : {}),
         },
-      },
+        include: options.includeUser
+          ? this.adminOrderInclude
+          : this.orderInclude,
+      });
     });
   }
 }

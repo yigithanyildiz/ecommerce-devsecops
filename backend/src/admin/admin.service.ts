@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OrdersService } from '../orders/orders.service';
 import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
 import { CreateAdminCategoryDto } from './dto/create-admin-category.dto';
 import { CreateAdminProductDto } from './dto/create-admin-product.dto';
@@ -12,7 +13,10 @@ import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
 import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ordersService: OrdersService,
+  ) {}
 
   async getDashboard() {
     const [
@@ -41,6 +45,11 @@ export class AdminService {
         },
       }),
       this.prisma.order.aggregate({
+        where: {
+          status: {
+            not: OrderStatus.CANCELLED,
+          },
+        },
         _sum: {
           totalAmount: true,
         },
@@ -151,41 +160,8 @@ export class AdminService {
     });
   }
   async updateOrderStatus(orderId: string, status: OrderStatus) {
-    const order = await this.prisma.order.findUnique({
-      where: {
-        id: orderId,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    return this.prisma.order.update({
-      where: {
-        id: orderId,
-      },
-      data: {
-        status,
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                imageUrl: true,
-              },
-            },
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+    return this.ordersService.updateStatus(orderId, status, {
+      includeUser: true,
     });
   }
 
@@ -193,14 +169,13 @@ export class AdminService {
     orderId: string,
     data: UpdateOrderFulfillmentDto,
   ) {
-    const order = await this.prisma.order.findUnique({
-      where: {
-        id: orderId,
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
+    if (data.status !== undefined) {
+      return this.ordersService.updateStatus(orderId, data.status, {
+        includeUser: true,
+        ...(data.trackingNumber !== undefined
+          ? { trackingNumber: data.trackingNumber || null }
+          : {}),
+      });
     }
 
     return this.prisma.order.update({
@@ -208,10 +183,7 @@ export class AdminService {
         id: orderId,
       },
       data: {
-        ...(data.status !== undefined ? { status: data.status } : {}),
-        ...(data.trackingNumber !== undefined
-          ? { trackingNumber: data.trackingNumber || null }
-          : {}),
+        trackingNumber: data.trackingNumber || null,
       },
       include: {
         items: {

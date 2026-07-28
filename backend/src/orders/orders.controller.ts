@@ -47,6 +47,11 @@ export class OrdersController {
     return this.ordersService.findOne(request.user.userId, orderId);
   }
 
+  @Patch(':id/cancel')
+  cancel(@Req() request: AuthenticatedRequest, @Param('id') orderId: string) {
+    return this.ordersService.cancel(request.user.userId, orderId);
+  }
+
   @Patch(':id/status')
   @Roles('ADMIN')
   updateStatus(
