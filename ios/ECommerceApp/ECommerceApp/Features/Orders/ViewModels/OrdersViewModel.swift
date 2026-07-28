@@ -9,7 +9,7 @@ final class OrdersViewModel: ObservableObject {
     @Published private(set) var lastCreatedOrder: Order?
 
     private let orderService: OrderServicing
-    private let sessionManager: SessionManager
+    let sessionManager: SessionManager
 
     init(
         orderService: OrderServicing = OrderService(),
@@ -58,6 +58,14 @@ final class OrdersViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    func replaceOrder(_ updatedOrder: Order) {
+        guard let index = orders.firstIndex(where: { $0.id == updatedOrder.id }) else {
+            return
+        }
+
+        orders[index] = updatedOrder
     }
 
     private func handle(_ error: Error) {

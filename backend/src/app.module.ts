@@ -11,6 +11,7 @@ import { ProductsModule } from './products/products.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { AdminModule } from './admin/admin.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { StorefrontModule } from './storefront/storefront.module';
 @Module({
   imports: [
     ThrottlerModule.forRoot([
@@ -27,6 +28,7 @@ import { AddressesModule } from './addresses/addresses.module';
     FavoritesModule,
     AdminModule,
     AddressesModule,
+    StorefrontModule,
   ],
   controllers: [AppController],
   providers: [

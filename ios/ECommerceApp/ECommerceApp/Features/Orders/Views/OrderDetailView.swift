@@ -1,7 +1,25 @@
 import SwiftUI
 
 struct OrderDetailView: View {
-    let order: Order
+    @StateObject private var viewModel: OrderDetailViewModel
+    @State private var showsCancelConfirmation = false
+    @State private var didCancelOrder = false
+
+    private let onOrderChanged: (Order) -> Void
+
+    init(
+        order: Order,
+        sessionManager: SessionManager,
+        onOrderChanged: @escaping (Order) -> Void = { _ in }
+    ) {
+        _viewModel = StateObject(
+            wrappedValue: OrderDetailViewModel(
+                order: order,
+                sessionManager: sessionManager
+            )
+        )
+        self.onOrderChanged = onOrderChanged
+    }
 
     var body: some View {
         ScrollView {
@@ -11,6 +29,7 @@ struct OrderDetailView: View {
                 deliveryCard
                 itemsCard
                 totalCard
+                cancelCard
             }
             .padding(.horizontal, LuxeTheme.horizontalPadding)
             .padding(.top, 18)
@@ -19,9 +38,32 @@ struct OrderDetailView: View {
         .background(LuxeTheme.background)
         .navigationTitle("Sipariş Detayı")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Siparişi iptal etmek istiyor musun?",
+            isPresented: $showsCancelConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Siparişi İptal Et", role: .destructive) {
+                Task {
+                    await cancelOrder()
+                }
+            }
+
+            Button("Vazgeç", role: .cancel) {}
+        } message: {
+            Text("İptal edilen sipariş için ürün stokları geri alınır.")
+        }
+        .alert("Sipariş iptal edildi", isPresented: $didCancelOrder) {
+            Button("Tamam", role: .cancel) {}
+        } message: {
+            Text("Sipariş durumun güncellendi.")
+        }
     }
 
+    @ViewBuilder
     private var headerCard: some View {
+        let order = viewModel.order
+
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -51,7 +93,10 @@ struct OrderDetailView: View {
         .luxeCard()
     }
 
+    @ViewBuilder
     private var timelineCard: some View {
+        let order = viewModel.order
+
         VStack(alignment: .leading, spacing: 18) {
             Text("Sipariş Süreci")
                 .font(.headline)
@@ -67,7 +112,10 @@ struct OrderDetailView: View {
         .luxeCard()
     }
 
+    @ViewBuilder
     private var itemsCard: some View {
+        let order = viewModel.order
+
         VStack(alignment: .leading, spacing: 16) {
             Text("Ürünler")
                 .font(.headline)
@@ -107,7 +155,10 @@ struct OrderDetailView: View {
         .luxeCard()
     }
 
+    @ViewBuilder
     private var deliveryCard: some View {
+        let order = viewModel.order
+
         VStack(alignment: .leading, spacing: 16) {
             Text("Teslimat")
                 .font(.headline)
@@ -171,7 +222,10 @@ struct OrderDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: LuxeTheme.controlRadius, style: .continuous))
     }
 
+    @ViewBuilder
     private var totalCard: some View {
+        let order = viewModel.order
+
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Genel Toplam")
@@ -196,6 +250,69 @@ struct OrderDetailView: View {
         .luxeCard()
     }
 
+    private var cancelCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(LuxeTheme.danger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if viewModel.order.canBeCancelled {
+                Button {
+                    showsCancelConfirmation = true
+                } label: {
+                    HStack {
+                        if viewModel.isCancelling {
+                            ProgressView()
+                                .tint(.white)
+                        }
+
+                        Text(viewModel.isCancelling ? "İptal ediliyor..." : "Siparişi İptal Et")
+                            .fontWeight(.bold)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .disabled(viewModel.isCancelling)
+                .buttonStyle(.borderedProminent)
+                .tint(LuxeTheme.danger)
+            } else if viewModel.order.status == "CANCELLED" {
+                Label("Bu sipariş iptal edildi.", systemImage: "xmark.circle")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(LuxeTheme.danger)
+            }
+        }
+        .padding(viewModel.order.canBeCancelled || viewModel.order.status == "CANCELLED" || viewModel.errorMessage != nil ? 18 : 0)
+        .background(
+            Group {
+                if viewModel.order.canBeCancelled || viewModel.order.status == "CANCELLED" || viewModel.errorMessage != nil {
+                    LuxeTheme.surface
+                } else {
+                    Color.clear
+                }
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: LuxeTheme.cardRadius, style: .continuous))
+        .shadow(
+            color: viewModel.order.canBeCancelled || viewModel.order.status == "CANCELLED" || viewModel.errorMessage != nil ? LuxeTheme.charcoal.opacity(0.05) : .clear,
+            radius: 24,
+            x: 0,
+            y: 14
+        )
+    }
+
+    private func cancelOrder() async {
+        guard let updatedOrder = await viewModel.cancelOrder() else {
+            return
+        }
+
+        onOrderChanged(updatedOrder)
+        didCancelOrder = true
+    }
+
     private func detailRow(_ title: String, _ value: String, isStrong: Bool = false) -> some View {
         HStack {
             Text(title)
@@ -208,7 +325,10 @@ struct OrderDetailView: View {
         .font(.subheadline)
     }
 
+    @ViewBuilder
     private func timelineRow(step: OrderLifecycleStep, isLast: Bool) -> some View {
+        let order = viewModel.order
+
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 0) {
                 Image(systemName: step.isCompleted(for: order.status) ? "checkmark.circle.fill" : "circle")

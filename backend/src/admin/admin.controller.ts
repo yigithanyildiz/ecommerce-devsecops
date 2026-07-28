@@ -18,15 +18,30 @@ import { CreateAdminCategoryDto } from './dto/create-admin-category.dto';
 import { CreateAdminProductDto } from './dto/create-admin-product.dto';
 import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
 import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
+import { StorefrontService } from '../storefront/storefront.service';
+import { UpdateStorefrontConfigDto } from '../storefront/dto/update-storefront-config.dto';
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly storefrontService: StorefrontService,
+  ) {}
 
   @Get('dashboard')
   dashboard() {
     return this.adminService.getDashboard();
+  }
+
+  @Get('storefront')
+  storefront() {
+    return this.storefrontService.getConfig();
+  }
+
+  @Patch('storefront')
+  updateStorefront(@Body() body: UpdateStorefrontConfigDto) {
+    return this.storefrontService.updateConfig(body);
   }
 
   @Get('products')
