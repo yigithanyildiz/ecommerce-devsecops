@@ -22,6 +22,7 @@ struct ProductDetailView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         headerSection
                         quantitySection
+                        purchaseInfoSection
                         descriptionSection
                         relatedProductsSection
                         trustBadges
@@ -165,7 +166,7 @@ struct ProductDetailView: View {
 
     private func handle(_ error: Error) {
         if let apiError = error as? APIError, apiError.isUnauthorized {
-            sessionManager.signOut()
+            sessionManager.expireSession()
         }
 
         errorMessage = error.localizedDescription
@@ -282,6 +283,78 @@ struct ProductDetailView: View {
                 .lineSpacing(4)
         }
     }
+
+    private var purchaseInfoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Alışveriş Bilgisi")
+                .font(.headline)
+                .foregroundStyle(LuxeTheme.charcoal)
+
+            VStack(spacing: 12) {
+                purchaseInfoRow(
+                    icon: "square.grid.2x2",
+                    title: "Kategori",
+                    value: product.category?.name ?? "-"
+                )
+
+                Divider()
+
+                purchaseInfoRow(
+                    icon: product.stock > 0 ? "checkmark.circle" : "xmark.circle",
+                    title: "Stok",
+                    value: product.stock > 0 ? "\(product.stock) adet hazır" : "Tükendi",
+                    valueColor: product.stock > 0 ? LuxeTheme.success : LuxeTheme.danger
+                )
+
+                Divider()
+
+                purchaseInfoRow(
+                    icon: "truck.box",
+                    title: "Teslimat",
+                    value: product.stock > 0 ? "Standart gönderim" : "Stok yenilenince"
+                )
+
+                Divider()
+
+                purchaseInfoRow(
+                    icon: "creditcard",
+                    title: "Ödeme",
+                    value: "Demo kart veya kapıda ödeme"
+                )
+            }
+        }
+        .padding(18)
+        .luxeCard()
+    }
+
+    private func purchaseInfoRow(
+        icon: String,
+        title: String,
+        value: String,
+        valueColor: Color = LuxeTheme.charcoal
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.subheadline)
+                .foregroundStyle(LuxeTheme.charcoal)
+                .frame(width: 34, height: 34)
+                .background(LuxeTheme.surfaceLow)
+                .clipShape(Circle())
+
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(LuxeTheme.secondaryText)
+
+            Spacer()
+
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(valueColor)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
     private var relatedProductsSection: some View {
         let visibleProducts = relatedProducts
             .filter { $0.id != product.id }

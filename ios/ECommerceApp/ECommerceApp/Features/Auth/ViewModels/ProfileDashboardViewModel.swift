@@ -74,7 +74,7 @@ final class ProfileDashboardViewModel: ObservableObject {
 
     private func handle(_ error: Error) {
         if let apiError = error as? APIError, apiError.isUnauthorized {
-            sessionManager.signOut()
+            sessionManager.expireSession()
         } else {
             errorMessage = error.localizedDescription
         }

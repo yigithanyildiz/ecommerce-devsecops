@@ -70,7 +70,7 @@ final class OrdersViewModel: ObservableObject {
 
     private func handle(_ error: Error) {
         if let apiError = error as? APIError, apiError.isUnauthorized {
-            sessionManager.signOut()
+            sessionManager.expireSession()
         }
 
         errorMessage = error.localizedDescription

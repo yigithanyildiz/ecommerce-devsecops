@@ -364,7 +364,7 @@ struct ProductListView: View {
             showToast("\(product.name) sepete eklendi")
         } catch {
             if let apiError = error as? APIError, apiError.isUnauthorized {
-                sessionManager.signOut()
+                sessionManager.expireSession()
             }
 
             errorMessage = error.localizedDescription

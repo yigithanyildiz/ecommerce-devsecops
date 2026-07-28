@@ -42,6 +42,7 @@ export function OrderDetailPage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const isCancelled = order?.status === "CANCELLED";
 
   useEffect(() => {
     async function loadOrder() {
@@ -267,24 +268,45 @@ export function OrderDetailPage() {
 
                   <div className="flex items-end justify-between gap-4">
                     <span className="font-bold text-[#1c1b1b]">Total</span>
-                    <span className="text-2xl font-bold text-[#1c1b1b]">
-                      ${order.totalAmount}
-                    </span>
+                    <div className="text-right">
+                      <span className="text-2xl font-bold text-[#1c1b1b]">
+                        ${order.totalAmount}
+                      </span>
+                      {isCancelled && (
+                        <p className="mt-1 text-xs font-semibold text-red-700">
+                          Excluded from revenue
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
-              <h2 className="font-bold text-[#1c1b1b]">Fulfillment</h2>
-              <p className="mt-2 text-sm text-[#444748]">
-                Update the order status as it moves through fulfillment.
-              </p>
+            <div
+              className={[
+                "rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]",
+                isCancelled ? "border border-red-100" : "",
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-bold text-[#1c1b1b]">Fulfillment</h2>
+                  <p className="mt-2 text-sm text-[#444748]">
+                    {isCancelled
+                      ? "This order was cancelled. Stock has been restored and fulfillment is locked."
+                      : "Update the order status as it moves through fulfillment."}
+                  </p>
+                </div>
+
+                {isCancelled && <StatusBadge status="CANCELLED" />}
+              </div>
 
               <select
                 value={selectedStatus}
                 onChange={(event) => setSelectedStatus(event.target.value)}
-                className="mt-4 w-full rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold text-[#1c1b1b] outline-none ring-1 ring-transparent transition focus:ring-[#1c1b1b]"
+                disabled={isCancelled}
+                className="mt-4 w-full rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold text-[#1c1b1b] outline-none ring-1 ring-transparent transition focus:ring-[#1c1b1b] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="PENDING">Pending</option>
                 <option value="PAID">Paid</option>
@@ -298,15 +320,20 @@ export function OrderDetailPage() {
                 value={trackingNumber}
                 onChange={(event) => setTrackingNumber(event.target.value)}
                 placeholder="Tracking number"
-                className="mt-3 w-full rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold text-[#1c1b1b] outline-none ring-1 ring-transparent transition focus:ring-[#1c1b1b]"
+                disabled={isCancelled}
+                className="mt-3 w-full rounded-2xl bg-[#f7f3f2] px-4 py-3 text-sm font-semibold text-[#1c1b1b] outline-none ring-1 ring-transparent transition focus:ring-[#1c1b1b] disabled:cursor-not-allowed disabled:opacity-60"
               />
 
               <button
                 onClick={updateStatus}
-                disabled={isUpdatingStatus || !selectedStatus}
+                disabled={isUpdatingStatus || !selectedStatus || isCancelled}
                 className="mt-4 w-full rounded-full bg-[#1c1b1b] px-5 py-3 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isUpdatingStatus ? "Updating..." : "Update Status"}
+                {isCancelled
+                  ? "Fulfillment Locked"
+                  : isUpdatingStatus
+                    ? "Updating..."
+                    : "Update Status"}
               </button>
             </div>
           </aside>

@@ -18,11 +18,13 @@ extension Notification.Name {
 }
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var sessionManager: SessionManager
     @State private var selectedTab: AppTab = .catalog
     @State private var ordersRefreshToken = 0
     @State private var productsRefreshToken = 0
     @State private var cartBadgeCount = 0
+    @State private var lastSessionValidationAt: Date?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -135,6 +137,25 @@ struct ContentView: View {
                 await refreshCartBadge()
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else {
+                return
+            }
+
+            Task {
+                await validateSessionIfNeeded()
+            }
+        }
+        .alert("Oturum kapandı", isPresented: Binding(
+            get: { sessionManager.sessionAlertMessage != nil },
+            set: { if !$0 { sessionManager.sessionAlertMessage = nil } }
+        )) {
+            Button("Tamam", role: .cancel) {
+                sessionManager.sessionAlertMessage = nil
+            }
+        } message: {
+            Text(sessionManager.sessionAlertMessage ?? "")
+        }
     }
 
     private func refreshCartBadge() async {
@@ -150,7 +171,33 @@ struct ContentView: View {
                 total + item.quantity
             }
         } catch {
+            if let apiError = error as? APIError, apiError.isUnauthorized {
+                sessionManager.expireSession()
+            }
+
             cartBadgeCount = 0
+        }
+    }
+
+    private func validateSessionIfNeeded() async {
+        guard sessionManager.isAuthenticated,
+              let accessToken = sessionManager.accessToken else {
+            return
+        }
+
+        if let lastSessionValidationAt,
+           Date().timeIntervalSince(lastSessionValidationAt) < 60 {
+            return
+        }
+
+        lastSessionValidationAt = Date()
+
+        do {
+            _ = try await AuthService().me(accessToken: accessToken)
+        } catch {
+            if let apiError = error as? APIError, apiError.isUnauthorized {
+                sessionManager.expireSession()
+            }
         }
     }
 }
