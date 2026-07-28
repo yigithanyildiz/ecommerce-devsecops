@@ -3,9 +3,26 @@ import Foundation
 final class APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "http://localhost:3000")!
+    private let baseURL: URL
 
-    private init() {}
+    private init() {
+        let environmentBaseURL = ProcessInfo.processInfo.environment["API_BASE_URL"]
+        let configuredBaseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
+
+        baseURL = environmentBaseURL
+            .flatMap(URL.init(string:))
+            ?? configuredBaseURL
+            .flatMap(URL.init(string:))
+            ?? URL(string: Self.defaultBaseURLString)!
+    }
+
+    private static var defaultBaseURLString: String {
+        #if DEBUG
+        return "http://localhost:3000"
+        #else
+        return "https://api.yigithanyildiz.com"
+        #endif
+    }
 
     func get<T: Decodable>(_ path: String) async throws -> T {
         let url = baseURL.appendingPathComponent(path)
