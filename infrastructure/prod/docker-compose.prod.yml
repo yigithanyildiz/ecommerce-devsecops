@@ -13,6 +13,17 @@ services:
       postgres:
         condition: service_healthy
 
+  admin-web:
+    build:
+      context: ../../admin-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://api.yigithanyildiz.com
+    container_name: ecommerce-admin-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+
   postgres:
     image: postgres:16-alpine
     container_name: ecommerce-postgres-prod
