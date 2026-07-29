@@ -9,6 +9,7 @@ Run this after a production deploy to verify the public API and admin web are al
 The script checks:
 
 - API health endpoint
+- API dependency health endpoint
 - API version endpoint
 - Public product catalog
 - Public storefront config
