@@ -43,3 +43,13 @@ After deploying the live API/admin stack, run:
 ```
 
 This verifies the API health endpoint, public catalog, storefront config, and admin web shell without writing data.
+
+## Production Backup
+
+Create a production database backup on the VM:
+
+```bash
+./scripts/backup-prod-db.sh
+```
+
+Restore instructions are documented in [docs/backup-restore.md](docs/backup-restore.md).

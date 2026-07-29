@@ -16,6 +16,7 @@ backend/.env
 # Generated files
 generated/
 backend/generated/
+backups/
 
 # OS / IDE
 .DS_Store
