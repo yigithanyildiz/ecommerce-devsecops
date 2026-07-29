@@ -23,6 +23,10 @@ API_URL=https://test-api.yigithanyildiz.com ADMIN_URL=https://test-admin.yigitha
 
 The script is read-only. It does not create users, carts, orders, or admin data.
 
+The production deploy workflow runs this script after deployment. The test deploy
+workflow checks API health, dependency health, and version endpoints separately
+because `test-admin.yigithanyildiz.com` is not currently enabled.
+
 ## Version Metadata
 
 When rebuilding the production API container manually, pass the current commit and build time:
