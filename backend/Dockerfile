@@ -13,6 +13,10 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ARG APP_COMMIT_SHA=unknown
+ARG APP_BUILD_TIME=unknown
+ENV APP_COMMIT_SHA=$APP_COMMIT_SHA
+ENV APP_BUILD_TIME=$APP_BUILD_TIME
 
 COPY package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
