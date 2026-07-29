@@ -26,6 +26,7 @@ check_contains() {
 }
 
 check_contains "API health" "$API_URL/health" '"status":"ok"'
+check_contains "API version" "$API_URL/version" '"commitSha"'
 check_contains "Product catalog" "$API_URL/products" '"name"'
 check_contains "Storefront config" "$API_URL/storefront" '"heroTitle"'
 check_contains "Admin web" "$ADMIN_URL" '<div id="root"></div>'
