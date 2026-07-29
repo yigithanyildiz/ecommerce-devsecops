@@ -97,6 +97,7 @@ jobs:
       - name: Check TEST health endpoint
         run: |
           curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/health
+          curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/health/details
           curl --fail --retry 10 --retry-delay 5 https://test-api.yigithanyildiz.com/version
 
   dast-zap-baseline:

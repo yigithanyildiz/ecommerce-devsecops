@@ -111,12 +111,14 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy
 
   health-check-prod:
-    name: Health Check PROD
+    name: Smoke Test PROD
     runs-on: ubuntu-latest
     needs: deploy-prod
 
     steps:
-      - name: Check PROD health endpoint
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run PROD smoke test
         run: |
-          curl --fail --retry 10 --retry-delay 5 https://api.yigithanyildiz.com/health
-          curl --fail --retry 10 --retry-delay 5 https://api.yigithanyildiz.com/version
+          ./scripts/smoke-prod.sh
