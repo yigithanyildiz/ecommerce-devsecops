@@ -1,30 +1,27 @@
 import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
+  constructor(private readonly appService: AppService) {}
+
   @Get()
   getRoot() {
-    return {
-      name: 'ecommerce-devsecops-api',
-      status: 'ok',
-    };
+    return this.appService.getRoot();
   }
 
   @Get('health')
   getHealth() {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-    };
+    return this.appService.getHealth();
+  }
+
+  @Get('health/details')
+  getHealthDetails() {
+    return this.appService.getHealthDetails();
   }
 
   @Get('version')
   getVersion() {
-    return {
-      name: 'ecommerce-devsecops-api',
-      environment: process.env.NODE_ENV ?? 'development',
-      commitSha: process.env.APP_COMMIT_SHA ?? 'local',
-      builtAt: process.env.APP_BUILD_TIME ?? 'local',
-    };
+    return this.appService.getVersion();
   }
 }
