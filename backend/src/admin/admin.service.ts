@@ -112,7 +112,7 @@ export class AdminService {
 
   async getSystemMetrics() {
     const [healthDetails, azure, backups] = await Promise.all([
-      this.appService.getHealthDetails(),
+      this.getSafeHealthDetails(),
       this.azureMonitorService.getVmMetrics(),
       this.backupStatusService.getStatus(),
     ]);
@@ -139,6 +139,28 @@ export class AdminService {
       azure,
       backups,
     };
+  }
+
+  private async getSafeHealthDetails() {
+    try {
+      return await this.appService.getHealthDetails();
+    } catch (error) {
+      return {
+        status: 'degraded',
+        timestamp: new Date().toISOString(),
+        checks: {
+          api: 'ok',
+          database: 'down',
+        },
+        latencyMs: {
+          database: null,
+        },
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Database health check failed',
+      };
+    }
   }
 
   private getOverallStatus({
