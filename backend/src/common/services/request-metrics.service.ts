@@ -46,7 +46,9 @@ export class RequestMetricsService {
 
     const samples = RequestMetricsService.samples;
     const requestCount = samples.length;
-    const errorCount = samples.filter((sample) => sample.statusCode >= 500).length;
+    const errorCount = samples.filter(
+      (sample) => sample.statusCode >= 500,
+    ).length;
     const clientErrorCount = samples.filter(
       (sample) => sample.statusCode >= 400 && sample.statusCode < 500,
     ).length;
@@ -93,7 +95,9 @@ export class RequestMetricsService {
         serverError: errorCount,
       },
       slowEndpoints: this.buildEndpointSummaries(samples)
-        .sort((first, second) => second.averageDurationMs - first.averageDurationMs)
+        .sort(
+          (first, second) => second.averageDurationMs - first.averageDurationMs,
+        )
         .slice(0, 5),
       topErrorEndpoints: this.buildEndpointSummaries(samples)
         .filter((endpoint) => endpoint.errorCount > 0)
@@ -144,7 +148,10 @@ export class RequestMetricsService {
       current.averageDurationMs = Math.round(
         current.totalDurationMs / current.requestCount,
       );
-      current.maxDurationMs = Math.max(current.maxDurationMs, sample.durationMs);
+      current.maxDurationMs = Math.max(
+        current.maxDurationMs,
+        sample.durationMs,
+      );
       current.errorCount += sample.statusCode >= 500 ? 1 : 0;
       current.lastSeenAt = new Date(
         Math.max(new Date(current.lastSeenAt).getTime(), sample.timestamp),
@@ -153,9 +160,15 @@ export class RequestMetricsService {
       endpointMap.set(key, current);
     }
 
-    return Array.from(endpointMap.values()).map(
-      ({ totalDurationMs: _totalDurationMs, ...endpoint }) => endpoint,
-    );
+    return Array.from(endpointMap.values()).map((endpoint) => ({
+      method: endpoint.method,
+      path: endpoint.path,
+      requestCount: endpoint.requestCount,
+      averageDurationMs: endpoint.averageDurationMs,
+      maxDurationMs: endpoint.maxDurationMs,
+      errorCount: endpoint.errorCount,
+      lastSeenAt: endpoint.lastSeenAt,
+    }));
   }
 
   private buildBuckets() {
