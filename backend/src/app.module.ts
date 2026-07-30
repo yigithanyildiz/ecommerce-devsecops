@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { StorefrontModule } from './storefront/storefront.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
+import { RequestMetricsService } from './common/services/request-metrics.service';
 @Module({
   imports: [
     ThrottlerModule.forRoot([
@@ -38,6 +39,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    RequestMetricsService,
   ],
 })
 export class AppModule implements NestModule {

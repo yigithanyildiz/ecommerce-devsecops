@@ -25,6 +25,7 @@ export class AppService {
       environment: process.env.NODE_ENV ?? 'development',
       commitSha: process.env.APP_COMMIT_SHA ?? 'local',
       builtAt: process.env.APP_BUILD_TIME ?? 'local',
+      uptimeSeconds: Math.floor(process.uptime()),
     };
   }
 
