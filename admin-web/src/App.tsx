@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { AdminLayout } from "./components/AdminLayout";
+import { AuditLogDetailPage } from "./pages/AuditLogDetailPage";
+import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
 import { CustomersPage } from "./pages/CustomersPage";
@@ -48,6 +50,8 @@ export default function App() {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:customerId" element={<CustomerDetailPage />} />
         <Route path="system" element={<SystemPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
+        <Route path="audit-logs/:auditLogId" element={<AuditLogDetailPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

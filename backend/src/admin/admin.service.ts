@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from '../orders/orders.service';
 import { UpdateOrderFulfillmentDto } from './dto/update-order-fulfillment.dto';
@@ -16,6 +17,34 @@ import { BackupStatusService } from './backup-status.service';
 import { AppService } from '../app.service';
 import { HealthScoreService } from '../common/services/health-score.service';
 import { RequestMetricsService } from '../common/services/request-metrics.service';
+
+type AdminActor = {
+  userId: string;
+  email: string;
+  role: string;
+};
+
+type AuditLogInput = {
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  entityLabel?: string | null;
+  metadata?: unknown;
+};
+
+type AuditLogRecord = {
+  id: string;
+  actorId: string | null;
+  actorEmail: string;
+  actorRole: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  entityLabel: string | null;
+  metadata: Prisma.JsonValue | null;
+  createdAt: Date;
+};
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -216,6 +245,84 @@ export class AdminService {
       },
     });
   }
+
+  async getAuditLogs() {
+    return this.prisma.$queryRaw<AuditLogRecord[]>`
+      SELECT
+        "id",
+        "actorId",
+        "actorEmail",
+        "actorRole",
+        "action",
+        "entityType",
+        "entityId",
+        "entityLabel",
+        "metadata",
+        "createdAt"
+      FROM "AdminAuditLog"
+      ORDER BY "createdAt" DESC
+      LIMIT 100
+    `;
+  }
+
+  async getAuditLog(auditLogId: string) {
+    const logs = await this.prisma.$queryRaw<AuditLogRecord[]>`
+      SELECT
+        "id",
+        "actorId",
+        "actorEmail",
+        "actorRole",
+        "action",
+        "entityType",
+        "entityId",
+        "entityLabel",
+        "metadata",
+        "createdAt"
+      FROM "AdminAuditLog"
+      WHERE "id" = ${auditLogId}
+      LIMIT 1
+    `;
+
+    const auditLog = logs[0];
+
+    if (!auditLog) {
+      throw new NotFoundException('Audit log not found');
+    }
+
+    return auditLog;
+  }
+
+  async recordAuditLog(actor: AdminActor, input: AuditLogInput) {
+    try {
+      await this.prisma.$executeRaw`
+        INSERT INTO "AdminAuditLog" (
+          "id",
+          "actorId",
+          "actorEmail",
+          "actorRole",
+          "action",
+          "entityType",
+          "entityId",
+          "entityLabel",
+          "metadata"
+        )
+        VALUES (
+          ${randomUUID()},
+          ${actor.userId},
+          ${actor.email},
+          ${actor.role},
+          ${input.action},
+          ${input.entityType},
+          ${input.entityId ?? null},
+          ${input.entityLabel ?? null},
+          ${JSON.stringify(this.toAuditMetadata(input.metadata) ?? null)}::jsonb
+        )
+      `;
+    } catch {
+      return;
+    }
+  }
+
   async getOrders() {
     return this.prisma.order.findMany({
       orderBy: {
@@ -266,26 +373,64 @@ export class AdminService {
       },
     });
   }
-  async updateOrderStatus(orderId: string, status: OrderStatus) {
-    return this.ordersService.updateStatus(orderId, status, {
-      includeUser: true,
+  async updateOrderStatus(
+    actor: AdminActor,
+    orderId: string,
+    status: OrderStatus,
+  ) {
+    const updatedOrder = await this.ordersService.updateStatus(
+      orderId,
+      status,
+      {
+        includeUser: true,
+      },
+    );
+
+    await this.recordAuditLog(actor, {
+      action: 'order.status_update',
+      entityType: 'order',
+      entityId: updatedOrder.id,
+      entityLabel: updatedOrder.id.slice(0, 8),
+      metadata: {
+        status,
+      },
     });
+
+    return updatedOrder;
   }
 
   async updateOrderFulfillment(
+    actor: AdminActor,
     orderId: string,
     data: UpdateOrderFulfillmentDto,
   ) {
     if (data.status !== undefined) {
-      return this.ordersService.updateStatus(orderId, data.status, {
-        includeUser: true,
-        ...(data.trackingNumber !== undefined
-          ? { trackingNumber: data.trackingNumber || null }
-          : {}),
+      const updatedOrder = await this.ordersService.updateStatus(
+        orderId,
+        data.status,
+        {
+          includeUser: true,
+          ...(data.trackingNumber !== undefined
+            ? { trackingNumber: data.trackingNumber || null }
+            : {}),
+        },
+      );
+
+      await this.recordAuditLog(actor, {
+        action: 'order.fulfillment_update',
+        entityType: 'order',
+        entityId: updatedOrder.id,
+        entityLabel: updatedOrder.id.slice(0, 8),
+        metadata: {
+          status: data.status,
+          trackingNumber: data.trackingNumber || null,
+        },
       });
+
+      return updatedOrder;
     }
 
-    return this.prisma.order.update({
+    const updatedOrder = await this.prisma.order.update({
       where: {
         id: orderId,
       },
@@ -311,6 +456,18 @@ export class AdminService {
         },
       },
     });
+
+    await this.recordAuditLog(actor, {
+      action: 'order.tracking_update',
+      entityType: 'order',
+      entityId: updatedOrder.id,
+      entityLabel: updatedOrder.id.slice(0, 8),
+      metadata: {
+        trackingNumber: data.trackingNumber || null,
+      },
+    });
+
+    return updatedOrder;
   }
 
   async getCategories() {
@@ -400,7 +557,11 @@ export class AdminService {
     };
   }
 
-  async updateCustomerStatus(customerId: string, isActive: boolean) {
+  async updateCustomerStatus(
+    actor: AdminActor,
+    customerId: string,
+    isActive: boolean,
+  ) {
     const customer = await this.prisma.user.findFirst({
       where: {
         id: customerId,
@@ -438,12 +599,22 @@ export class AdminService {
       },
     });
 
+    await this.recordAuditLog(actor, {
+      action: 'customer.status_update',
+      entityType: 'customer',
+      entityId: updatedCustomer.id,
+      entityLabel: updatedCustomer.email,
+      metadata: {
+        isActive,
+      },
+    });
+
     return this.toCustomerSummary(updatedCustomer);
   }
 
-  async createProduct(data: CreateAdminProductDto) {
+  async createProduct(actor: AdminActor, data: CreateAdminProductDto) {
     try {
-      return await this.prisma.product.create({
+      const product = await this.prisma.product.create({
         data: {
           name: data.name,
           slug: data.slug,
@@ -458,11 +629,30 @@ export class AdminService {
           category: true,
         },
       });
+
+      await this.recordAuditLog(actor, {
+        action: 'product.create',
+        entityType: 'product',
+        entityId: product.id,
+        entityLabel: product.name,
+        metadata: {
+          slug: product.slug,
+          price: product.price.toString(),
+          stock: product.stock,
+          categoryId: product.categoryId,
+        },
+      });
+
+      return product;
     } catch (error) {
       this.handleAdminWriteError(error, 'Product slug already exists');
     }
   }
-  async updateProduct(productId: string, data: UpdateAdminProductDto) {
+  async updateProduct(
+    actor: AdminActor,
+    productId: string,
+    data: UpdateAdminProductDto,
+  ) {
     const product = await this.prisma.product.findUnique({
       where: {
         id: productId,
@@ -473,7 +663,7 @@ export class AdminService {
       throw new NotFoundException('Product not found');
     }
     try {
-      return await this.prisma.product.update({
+      const updatedProduct = await this.prisma.product.update({
         where: {
           id: productId,
         },
@@ -496,12 +686,28 @@ export class AdminService {
           category: true,
         },
       });
+
+      await this.recordAuditLog(actor, {
+        action: 'product.update',
+        entityType: 'product',
+        entityId: updatedProduct.id,
+        entityLabel: updatedProduct.name,
+        metadata: {
+          changedFields: Object.keys(data),
+        },
+      });
+
+      return updatedProduct;
     } catch (error) {
       this.handleAdminWriteError(error, 'Product slug already exists');
     }
   }
 
-  async updateProductStatus(productId: string, isActive: boolean) {
+  async updateProductStatus(
+    actor: AdminActor,
+    productId: string,
+    isActive: boolean,
+  ) {
     const product = await this.prisma.product.findUnique({
       where: {
         id: productId,
@@ -512,7 +718,7 @@ export class AdminService {
       throw new NotFoundException('Product not found');
     }
 
-    return this.prisma.product.update({
+    const updatedProduct = await this.prisma.product.update({
       where: {
         id: productId,
       },
@@ -523,10 +729,22 @@ export class AdminService {
         category: true,
       },
     });
+
+    await this.recordAuditLog(actor, {
+      action: 'product.status_update',
+      entityType: 'product',
+      entityId: updatedProduct.id,
+      entityLabel: updatedProduct.name,
+      metadata: {
+        isActive,
+      },
+    });
+
+    return updatedProduct;
   }
-  async createCategory(data: CreateAdminCategoryDto) {
+  async createCategory(actor: AdminActor, data: CreateAdminCategoryDto) {
     try {
-      return await this.prisma.category.create({
+      const category = await this.prisma.category.create({
         data: {
           name: data.name,
           slug: data.slug,
@@ -539,12 +757,28 @@ export class AdminService {
           },
         },
       });
+
+      await this.recordAuditLog(actor, {
+        action: 'category.create',
+        entityType: 'category',
+        entityId: category.id,
+        entityLabel: category.name,
+        metadata: {
+          slug: category.slug,
+        },
+      });
+
+      return category;
     } catch (error) {
       this.handleAdminWriteError(error, 'Category slug already exists');
     }
   }
 
-  async updateCategory(categoryId: string, data: UpdateAdminCategoryDto) {
+  async updateCategory(
+    actor: AdminActor,
+    categoryId: string,
+    data: UpdateAdminCategoryDto,
+  ) {
     const category = await this.prisma.category.findUnique({
       where: {
         id: categoryId,
@@ -556,7 +790,7 @@ export class AdminService {
     }
 
     try {
-      return await this.prisma.category.update({
+      const updatedCategory = await this.prisma.category.update({
         where: {
           id: categoryId,
         },
@@ -572,6 +806,18 @@ export class AdminService {
           },
         },
       });
+
+      await this.recordAuditLog(actor, {
+        action: 'category.update',
+        entityType: 'category',
+        entityId: updatedCategory.id,
+        entityLabel: updatedCategory.name,
+        metadata: {
+          changedFields: Object.keys(data),
+        },
+      });
+
+      return updatedCategory;
     } catch (error) {
       this.handleAdminWriteError(error, 'Category slug already exists');
     }
@@ -586,6 +832,15 @@ export class AdminService {
 
     throw error;
   }
+
+  private toAuditMetadata(value: unknown): Prisma.InputJsonValue | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+  }
+
   private toCustomerSummary(customer: {
     id: string;
     name: string;
