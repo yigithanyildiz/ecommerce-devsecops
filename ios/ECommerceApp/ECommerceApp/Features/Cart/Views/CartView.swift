@@ -36,7 +36,7 @@ struct CartView: View {
                     ContentUnavailableView {
                         Label("Sepet boş", systemImage: "cart")
                     } description: {
-                        Text(viewModel.errorMessage ?? "Ürün detayından sepete ürün ekleyebilirsin.")
+                        Text(viewModel.errorMessage ?? "Ürün de2tayından sepete ürün ekleyebilirsin.")
                     } actions: {
                         Button("Ürünlere Git") {
                             onBrowseProducts()
