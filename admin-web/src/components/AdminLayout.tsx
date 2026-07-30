@@ -4,6 +4,7 @@ import {
   FolderTree,
   LogOut,
   PackageCheck,
+  ScrollText,
   ServerCog,
   UsersRound,
 } from "lucide-react";
@@ -40,6 +41,11 @@ const navItems = [
     label: "System",
     to: "/system",
     icon: ServerCog,
+  },
+  {
+    label: "Audit Logs",
+    to: "/audit-logs",
+    icon: ScrollText,
   },
 ];
 
