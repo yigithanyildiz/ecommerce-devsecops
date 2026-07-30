@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { OrderDetailPage } from "./pages/OrderDetailPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { ProductsPage } from "./pages/ProductsPage";
+import { SystemPage } from "./pages/SystemPage";
 import { UnauthorizedPage } from "./pages/UnauthorizedPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:customerId" element={<CustomerDetailPage />} />
+        <Route path="system" element={<SystemPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
