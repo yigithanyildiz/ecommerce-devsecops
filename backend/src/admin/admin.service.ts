@@ -11,11 +11,15 @@ import { CreateAdminCategoryDto } from './dto/create-admin-category.dto';
 import { CreateAdminProductDto } from './dto/create-admin-product.dto';
 import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
 import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
+import { AzureMonitorService } from './azure-monitor.service';
+import { AppService } from '../app.service';
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
+    private readonly azureMonitorService: AzureMonitorService,
+    private readonly appService: AppService,
   ) {}
 
   async getDashboard() {
@@ -97,6 +101,22 @@ export class AdminService {
       totalRevenue: revenueAggregate._sum.totalAmount?.toString() ?? '0',
       recentOrders,
       lowStockItems,
+    };
+  }
+
+  async getSystemMetrics() {
+    const [healthDetails, azure] = await Promise.all([
+      this.appService.getHealthDetails(),
+      this.azureMonitorService.getVmMetrics(),
+    ]);
+
+    return {
+      checkedAt: new Date().toISOString(),
+      api: {
+        ...this.appService.getVersion(),
+        health: healthDetails,
+      },
+      azure,
     };
   }
   async getProducts() {

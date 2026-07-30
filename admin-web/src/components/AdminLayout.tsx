@@ -4,6 +4,7 @@ import {
   FolderTree,
   LogOut,
   PackageCheck,
+  ServerCog,
   UsersRound,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -34,6 +35,11 @@ const navItems = [
     label: "Categories",
     to: "/categories",
     icon: FolderTree,
+  },
+  {
+    label: "System",
+    to: "/system",
+    icon: ServerCog,
   },
 ];
 
