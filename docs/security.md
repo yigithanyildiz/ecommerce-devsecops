@@ -10,11 +10,11 @@ Gitleaks runs on pull requests to detect accidental secrets before code is merge
 
 ### SAST
 
-Semgrep runs as a static application security testing step during pull request validation. It scans the codebase using OWASP-oriented rules and produces a SARIF report.
+Semgrep runs as a static application security testing step during pull request validation. It scans the codebase using OWASP-oriented rules and uploads SARIF results to GitHub Code Scanning.
 
 ### Container And Configuration Scanning
 
-Trivy runs during pull request validation to scan the repository filesystem for vulnerable packages, container configuration issues, embedded secrets, and infrastructure misconfigurations. High and critical findings fail the pipeline, while a SARIF report is uploaded as a workflow artifact.
+Trivy runs during pull request validation to scan the repository filesystem for vulnerable packages, container configuration issues, embedded secrets, and infrastructure misconfigurations. High and critical findings fail the pipeline, while SARIF results are uploaded to GitHub Code Scanning.
 
 ### Dependency Audit
 
