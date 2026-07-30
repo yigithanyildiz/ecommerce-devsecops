@@ -15,6 +15,16 @@ type Bucket = {
   averageDurationMs: number;
 };
 
+type EndpointSummary = {
+  method: string;
+  path: string;
+  requestCount: number;
+  averageDurationMs: number;
+  maxDurationMs: number;
+  errorCount: number;
+  lastSeenAt: string;
+};
+
 const retentionMs = 15 * 60 * 1000;
 const bucketMs = 60 * 1000;
 
@@ -40,6 +50,12 @@ export class RequestMetricsService {
     const clientErrorCount = samples.filter(
       (sample) => sample.statusCode >= 400 && sample.statusCode < 500,
     ).length;
+    const successCount = samples.filter(
+      (sample) => sample.statusCode >= 200 && sample.statusCode < 300,
+    ).length;
+    const redirectCount = samples.filter(
+      (sample) => sample.statusCode >= 300 && sample.statusCode < 400,
+    ).length;
     const totalDuration = samples.reduce(
       (total, sample) => total + sample.durationMs,
       0,
@@ -51,12 +67,95 @@ export class RequestMetricsService {
     return {
       windowMinutes: 15,
       requestCount,
+      successCount,
+      redirectCount,
       errorCount,
       clientErrorCount,
+      serverErrorRate:
+        requestCount === 0
+          ? 0
+          : Math.round((errorCount / requestCount) * 10000) / 100,
+      clientErrorRate:
+        requestCount === 0
+          ? 0
+          : Math.round((clientErrorCount / requestCount) * 10000) / 100,
       averageDurationMs,
+      p50DurationMs: this.percentile(samples, 50),
+      p95DurationMs: this.percentile(samples, 95),
+      maxDurationMs:
+        samples.length === 0
+          ? 0
+          : Math.max(...samples.map((sample) => sample.durationMs)),
+      statusBreakdown: {
+        success: successCount,
+        redirect: redirectCount,
+        clientError: clientErrorCount,
+        serverError: errorCount,
+      },
+      slowEndpoints: this.buildEndpointSummaries(samples)
+        .sort((first, second) => second.averageDurationMs - first.averageDurationMs)
+        .slice(0, 5),
+      topErrorEndpoints: this.buildEndpointSummaries(samples)
+        .filter((endpoint) => endpoint.errorCount > 0)
+        .sort((first, second) => second.errorCount - first.errorCount)
+        .slice(0, 5),
       requestsPerMinute: this.buildBuckets(),
       latestRequests,
     };
+  }
+
+  private percentile(samples: RequestMetricSample[], percentile: number) {
+    if (samples.length === 0) {
+      return 0;
+    }
+
+    const sortedDurations = samples
+      .map((sample) => sample.durationMs)
+      .sort((first, second) => first - second);
+    const index = Math.min(
+      sortedDurations.length - 1,
+      Math.ceil((percentile / 100) * sortedDurations.length) - 1,
+    );
+
+    return sortedDurations[index];
+  }
+
+  private buildEndpointSummaries(samples: RequestMetricSample[]) {
+    const endpointMap = new Map<
+      string,
+      EndpointSummary & { totalDurationMs: number }
+    >();
+
+    for (const sample of samples) {
+      const key = `${sample.method} ${sample.path}`;
+      const current = endpointMap.get(key) ?? {
+        method: sample.method,
+        path: sample.path,
+        requestCount: 0,
+        averageDurationMs: 0,
+        maxDurationMs: 0,
+        errorCount: 0,
+        lastSeenAt: new Date(sample.timestamp).toISOString(),
+        totalDurationMs: 0,
+      };
+
+      current.requestCount += 1;
+      current.totalDurationMs += sample.durationMs;
+      current.averageDurationMs = Math.round(
+        current.totalDurationMs / current.requestCount,
+      );
+      current.maxDurationMs = Math.max(current.maxDurationMs, sample.durationMs);
+      current.errorCount += sample.statusCode >= 500 ? 1 : 0;
+      current.lastSeenAt = new Date(
+        Math.max(new Date(current.lastSeenAt).getTime(), sample.timestamp),
+      ).toISOString();
+
+      endpointMap.set(key, current);
+    }
+
+    return Array.from(endpointMap.values()).map(
+      ({ totalDurationMs: _totalDurationMs, ...endpoint }) => endpoint,
+    );
   }
 
   private buildBuckets() {
