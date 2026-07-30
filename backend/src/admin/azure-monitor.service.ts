@@ -6,7 +6,11 @@ type MetricName =
   | 'Available Memory Bytes'
   | 'Available Memory Percentage'
   | 'Network In Total'
-  | 'Network Out Total';
+  | 'Network Out Total'
+  | 'Disk Read Bytes'
+  | 'Disk Write Bytes'
+  | 'Disk Read Operations/Sec'
+  | 'Disk Write Operations/Sec';
 
 type AzureMetricValue = {
   timeStamp?: string;
@@ -59,6 +63,10 @@ export class AzureMonitorService {
           'Available Memory Percentage',
           'Network In Total',
           'Network Out Total',
+          'Disk Read Bytes',
+          'Disk Write Bytes',
+          'Disk Read Operations/Sec',
+          'Disk Write Operations/Sec',
         ].join(','),
       );
       url.searchParams.set('timespan', 'PT15M');
@@ -133,6 +141,16 @@ export class AzureMonitorService {
     );
     const networkInBytesSeries = buildSeries('Network In Total', 'total');
     const networkOutBytesSeries = buildSeries('Network Out Total', 'total');
+    const diskReadBytesSeries = buildSeries('Disk Read Bytes', 'total');
+    const diskWriteBytesSeries = buildSeries('Disk Write Bytes', 'total');
+    const diskReadOperationsSeries = buildSeries(
+      'Disk Read Operations/Sec',
+      'average',
+    );
+    const diskWriteOperationsSeries = buildSeries(
+      'Disk Write Operations/Sec',
+      'average',
+    );
 
     return {
       cpuPercent: latest(cpuPercentSeries),
@@ -140,12 +158,20 @@ export class AzureMonitorService {
       availableMemoryPercent: latest(availableMemoryPercentSeries),
       networkInBytes: latest(networkInBytesSeries),
       networkOutBytes: latest(networkOutBytesSeries),
+      diskReadBytes: latest(diskReadBytesSeries),
+      diskWriteBytes: latest(diskWriteBytesSeries),
+      diskReadOperationsPerSecond: latest(diskReadOperationsSeries),
+      diskWriteOperationsPerSecond: latest(diskWriteOperationsSeries),
       series: {
         cpuPercent: cpuPercentSeries,
         availableMemoryBytes: availableMemoryBytesSeries,
         availableMemoryPercent: availableMemoryPercentSeries,
         networkInBytes: networkInBytesSeries,
         networkOutBytes: networkOutBytesSeries,
+        diskReadBytes: diskReadBytesSeries,
+        diskWriteBytes: diskWriteBytesSeries,
+        diskReadOperationsPerSecond: diskReadOperationsSeries,
+        diskWriteOperationsPerSecond: diskWriteOperationsSeries,
       },
     };
   }

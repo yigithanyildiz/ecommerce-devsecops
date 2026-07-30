@@ -34,11 +34,6 @@ export class AdminController {
     return this.adminService.getDashboard();
   }
 
-  @Get('system/metrics')
-  systemMetrics() {
-    return this.adminService.getSystemMetrics();
-  }
-
   @Get('storefront')
   storefront() {
     return this.storefrontService.getConfig();
