@@ -17,11 +17,7 @@ final class APIClient {
     }
 
     private static var defaultBaseURLString: String {
-        #if DEBUG
-        return "http://localhost:3000"
-        #else
         return "https://api.yigithanyildiz.com"
-        #endif
     }
 
     func get<T: Decodable>(_ path: String) async throws -> T {
