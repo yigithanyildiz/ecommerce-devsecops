@@ -12,14 +12,18 @@ import { CreateAdminProductDto } from './dto/create-admin-product.dto';
 import { UpdateAdminCategoryDto } from './dto/update-admin-category.dto';
 import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 import { AzureMonitorService } from './azure-monitor.service';
+import { BackupStatusService } from './backup-status.service';
 import { AppService } from '../app.service';
+import { RequestMetricsService } from '../common/services/request-metrics.service';
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersService: OrdersService,
     private readonly azureMonitorService: AzureMonitorService,
+    private readonly backupStatusService: BackupStatusService,
     private readonly appService: AppService,
+    private readonly requestMetricsService: RequestMetricsService,
   ) {}
 
   async getDashboard() {
@@ -105,9 +109,10 @@ export class AdminService {
   }
 
   async getSystemMetrics() {
-    const [healthDetails, azure] = await Promise.all([
+    const [healthDetails, azure, backups] = await Promise.all([
       this.appService.getHealthDetails(),
       this.azureMonitorService.getVmMetrics(),
+      this.backupStatusService.getStatus(),
     ]);
 
     return {
@@ -115,8 +120,10 @@ export class AdminService {
       api: {
         ...this.appService.getVersion(),
         health: healthDetails,
+        requestMetrics: this.requestMetricsService.getSummary(),
       },
       azure,
+      backups,
     };
   }
   async getProducts() {

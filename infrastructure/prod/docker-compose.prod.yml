@@ -10,8 +10,15 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
+      APP_BUILD_TIME: ${APP_BUILD_TIME:-unknown}
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups/prod}
+      RETENTION_DAYS: ${RETENTION_DAYS:-14}
     ports:
       - "127.0.0.1:3000:3000"
+    volumes:
+      - /opt/ecommerce/app/backups/prod:/app/backups/prod:ro
     depends_on:
       postgres:
         condition: service_healthy
