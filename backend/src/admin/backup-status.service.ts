@@ -36,11 +36,21 @@ export class BackupStatusService {
           new Date(first.createdAt).getTime(),
       );
       const latestBackup = sortedBackups[0] ?? null;
+      const latestBackupAgeHours = latestBackup
+        ? Math.round(
+            ((Date.now() - new Date(latestBackup.createdAt).getTime()) /
+              (60 * 60 * 1000)) *
+              100,
+          ) / 100
+        : null;
+      const freshnessStatus = this.getFreshnessStatus(latestBackupAgeHours);
 
       return {
         available: true,
         backupDir,
         retentionDays: Number.isFinite(retentionDays) ? retentionDays : null,
+        freshnessStatus,
+        latestBackupAgeHours,
         backupCount: sortedBackups.length,
         totalSizeBytes: sortedBackups.reduce(
           (total, backup) => total + backup.sizeBytes,
@@ -59,5 +69,21 @@ export class BackupStatusService {
             : 'Backup status could not be read',
       };
     }
+  }
+
+  private getFreshnessStatus(ageHours: number | null) {
+    if (ageHours === null) {
+      return 'critical';
+    }
+
+    if (ageHours <= 24) {
+      return 'healthy';
+    }
+
+    if (ageHours <= 48) {
+      return 'warning';
+    }
+
+    return 'critical';
   }
 }

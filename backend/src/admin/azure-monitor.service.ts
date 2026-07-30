@@ -100,7 +100,10 @@ export class AzureMonitorService {
   }
 
   private toMetricSummary(data: AzureMetricResponse) {
-    const buildSeries = (name: MetricName, aggregation: 'average' | 'total') => {
+    const buildSeries = (
+      name: MetricName,
+      aggregation: 'average' | 'total',
+    ) => {
       const metric = data.value?.find((item) => item.name?.value === name);
       const points = metric?.timeseries?.flatMap((series) => series.data ?? []);
 

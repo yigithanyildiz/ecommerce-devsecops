@@ -14,6 +14,7 @@ import { UpdateAdminProductDto } from './dto/update-admin-product.dto';
 import { AzureMonitorService } from './azure-monitor.service';
 import { BackupStatusService } from './backup-status.service';
 import { AppService } from '../app.service';
+import { HealthScoreService } from '../common/services/health-score.service';
 import { RequestMetricsService } from '../common/services/request-metrics.service';
 @Injectable()
 export class AdminService {
@@ -23,6 +24,7 @@ export class AdminService {
     private readonly azureMonitorService: AzureMonitorService,
     private readonly backupStatusService: BackupStatusService,
     private readonly appService: AppService,
+    private readonly healthScoreService: HealthScoreService,
     private readonly requestMetricsService: RequestMetricsService,
   ) {}
 
@@ -114,16 +116,72 @@ export class AdminService {
       this.azureMonitorService.getVmMetrics(),
       this.backupStatusService.getStatus(),
     ]);
+    const healthScore = this.healthScoreService.getSummary();
+    const requestMetrics = this.requestMetricsService.getSummary();
 
     return {
       checkedAt: new Date().toISOString(),
+      overallStatus: this.getOverallStatus({
+        apiScore: healthScore.api.scorePercent,
+        databaseScore: healthScore.database.scorePercent,
+        serverErrorRate: requestMetrics.serverErrorRate,
+        backupStatus:
+          backups.available && backups.freshnessStatus
+            ? backups.freshnessStatus
+            : 'critical',
+      }),
       api: {
         ...this.appService.getVersion(),
         health: healthDetails,
-        requestMetrics: this.requestMetricsService.getSummary(),
+        healthScore,
+        requestMetrics,
       },
       azure,
       backups,
+    };
+  }
+
+  private getOverallStatus({
+    apiScore,
+    databaseScore,
+    serverErrorRate,
+    backupStatus,
+  }: {
+    apiScore: number;
+    databaseScore: number;
+    serverErrorRate: number;
+    backupStatus: string;
+  }) {
+    if (
+      apiScore < 90 ||
+      databaseScore < 90 ||
+      serverErrorRate >= 10 ||
+      backupStatus === 'critical'
+    ) {
+      return {
+        level: 'critical',
+        label: 'Critical',
+        reason: 'One or more core operational checks require attention.',
+      };
+    }
+
+    if (
+      apiScore < 100 ||
+      databaseScore < 100 ||
+      serverErrorRate > 0 ||
+      backupStatus === 'warning'
+    ) {
+      return {
+        level: 'degraded',
+        label: 'Degraded',
+        reason: 'The system is available with minor operational warnings.',
+      };
+    }
+
+    return {
+      level: 'healthy',
+      label: 'Healthy',
+      reason: 'All monitored checks are passing.',
     };
   }
   async getProducts() {

@@ -19,6 +19,11 @@ import { StatCard } from "../components/StatCard";
 
 type SystemMetrics = {
   checkedAt: string;
+  overallStatus: {
+    level: "healthy" | "degraded" | "critical";
+    label: string;
+    reason: string;
+  };
   api: {
     name: string;
     environment: string;
@@ -39,9 +44,24 @@ type SystemMetrics = {
     requestMetrics: {
       windowMinutes: number;
       requestCount: number;
+      successCount: number;
+      redirectCount: number;
       errorCount: number;
       clientErrorCount: number;
+      serverErrorRate: number;
+      clientErrorRate: number;
       averageDurationMs: number;
+      p50DurationMs: number;
+      p95DurationMs: number;
+      maxDurationMs: number;
+      statusBreakdown: {
+        success: number;
+        redirect: number;
+        clientError: number;
+        serverError: number;
+      };
+      slowEndpoints: EndpointSummary[];
+      topErrorEndpoints: EndpointSummary[];
       requestsPerMinute: Array<{
         timestamp: string;
         requestCount: number;
@@ -54,6 +74,17 @@ type SystemMetrics = {
         path: string;
         statusCode: number;
         durationMs: number;
+      }>;
+    };
+    healthScore: {
+      windowSeconds: number;
+      api: HealthScore;
+      database: HealthScore;
+      probes: Array<{
+        timestamp: string;
+        api: boolean;
+        database: boolean;
+        databaseLatencyMs: number | null;
       }>;
     };
   };
@@ -88,6 +119,8 @@ type SystemMetrics = {
         available: true;
         backupDir: string;
         retentionDays: number | null;
+        freshnessStatus: "healthy" | "warning" | "critical";
+        latestBackupAgeHours: number | null;
         backupCount: number;
         totalSizeBytes: number;
         latestBackup: BackupFile | null;
@@ -109,6 +142,22 @@ type BackupFile = {
   fileName: string;
   sizeBytes: number;
   createdAt: string;
+};
+
+type HealthScore = {
+  scorePercent: number;
+  successfulChecks: number;
+  totalChecks: number;
+};
+
+type EndpointSummary = {
+  method: string;
+  path: string;
+  requestCount: number;
+  averageDurationMs: number;
+  maxDurationMs: number;
+  errorCount: number;
+  lastSeenAt: string;
 };
 
 function formatDate(value: string) {
@@ -276,7 +325,64 @@ export function SystemPage() {
 
       {metrics && (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section
+            className={[
+              "border p-5",
+              metrics.overallStatus.level === "healthy"
+                ? "border-emerald-200 bg-emerald-50"
+                : metrics.overallStatus.level === "degraded"
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-red-200 bg-red-50",
+            ].join(" ")}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#444748]">
+                  Overall System Status
+                </p>
+                <h2
+                  className={[
+                    "mt-1 text-2xl font-bold",
+                    metrics.overallStatus.level === "healthy"
+                      ? "text-emerald-800"
+                      : metrics.overallStatus.level === "degraded"
+                        ? "text-amber-800"
+                        : "text-red-800",
+                  ].join(" ")}
+                >
+                  {metrics.overallStatus.label}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-[#444748]">
+                  {metrics.overallStatus.reason}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-sm font-bold sm:grid-cols-4">
+                <StatusPill
+                  label="API"
+                  value={`${metrics.api.healthScore.api.scorePercent}%`}
+                />
+                <StatusPill
+                  label="DB"
+                  value={`${metrics.api.healthScore.database.scorePercent}%`}
+                />
+                <StatusPill
+                  label="5xx"
+                  value={`${metrics.api.requestMetrics.serverErrorRate}%`}
+                />
+                <StatusPill
+                  label="Backup"
+                  value={
+                    metrics.backups.available
+                      ? metrics.backups.freshnessStatus
+                      : "critical"
+                  }
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
               title="API Status"
               value={metrics.api.health.status.toUpperCase()}
@@ -315,6 +421,18 @@ export function SystemPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard
+              title="API Score"
+              value={`${metrics.api.healthScore.api.scorePercent}%`}
+              icon={Activity}
+              helper={`${metrics.api.healthScore.api.successfulChecks}/${metrics.api.healthScore.api.totalChecks} checks`}
+            />
+            <StatCard
+              title="DB Score"
+              value={`${metrics.api.healthScore.database.scorePercent}%`}
+              icon={Database}
+              helper={`${metrics.api.healthScore.database.successfulChecks}/${metrics.api.healthScore.database.totalChecks} checks`}
+            />
+            <StatCard
               title="Uptime"
               value={formatUptime(metrics.api.uptimeSeconds)}
               icon={Timer}
@@ -338,7 +456,135 @@ export function SystemPage() {
               icon={Activity}
               helper="HTTP 4xx responses"
             />
+            <StatCard
+              title="5xx Error Rate"
+              value={`${metrics.api.requestMetrics.serverErrorRate}%`}
+              icon={Activity}
+              helper="Server error ratio"
+            />
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard
+              title="p50 Latency"
+              value={`${metrics.api.requestMetrics.p50DurationMs} ms`}
+              icon={Clock3}
+              helper="Median response"
+            />
+            <StatCard
+              title="p95 Latency"
+              value={`${metrics.api.requestMetrics.p95DurationMs} ms`}
+              icon={Clock3}
+              helper="Tail response"
+            />
+            <StatCard
+              title="Max Latency"
+              value={`${metrics.api.requestMetrics.maxDurationMs} ms`}
+              icon={Clock3}
+              helper="Slowest response"
+            />
+            <StatCard
+              title="4xx Error Rate"
+              value={`${metrics.api.requestMetrics.clientErrorRate}%`}
+              icon={Activity}
+              helper="Client error ratio"
+            />
+            <StatCard
+              title="Backup Freshness"
+              value={
+                metrics.backups.available
+                  ? metrics.backups.freshnessStatus
+                  : "critical"
+              }
+              icon={Files}
+              helper={
+                metrics.backups.available &&
+                metrics.backups.latestBackupAgeHours !== null
+                  ? `${metrics.backups.latestBackupAgeHours}h old`
+                  : "No readable backup"
+              }
+            />
+          </div>
+
+          <section className="grid gap-5 xl:grid-cols-3">
+            <ChartCard
+              title="API Health Score"
+              helper={`Last ${metrics.api.healthScore.windowSeconds} one-second checks`}
+              points={metrics.api.healthScore.probes.map((probe) =>
+                probe.api ? 100 : 0,
+              )}
+              color="#059669"
+              suffix="%"
+              yLabel="success"
+              xLabel="last 15 seconds"
+              formatter={(value) => `${value.toFixed(0)}%`}
+            />
+            <ChartCard
+              title="Database Health Score"
+              helper={`Last ${metrics.api.healthScore.windowSeconds} one-second checks`}
+              points={metrics.api.healthScore.probes.map((probe) =>
+                probe.database ? 100 : 0,
+              )}
+              color="#2563eb"
+              suffix="%"
+              yLabel="success"
+              xLabel="last 15 seconds"
+              formatter={(value) => `${value.toFixed(0)}%`}
+            />
+            <ChartCard
+              title="Database Probe Latency"
+              helper="One-second database probe latency"
+              points={metrics.api.healthScore.probes.map(
+                (probe) => probe.databaseLatencyMs ?? 0,
+              )}
+              color="#7c3aed"
+              suffix=" ms"
+              yLabel="ms"
+              xLabel="last 15 seconds"
+            />
+          </section>
+
+          <section className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
+            <div className="border border-[#d8d4d2] bg-white p-5">
+              <h2 className="text-lg font-bold text-[#1c1b1b]">
+                Status Breakdown
+              </h2>
+              <p className="mt-1 text-sm text-[#747878]">
+                HTTP response classes over the last 15 minutes.
+              </p>
+              <StatusBreakdownBar
+                breakdown={metrics.api.requestMetrics.statusBreakdown}
+              />
+            </div>
+
+            <div className="border border-[#d8d4d2] bg-white p-5">
+              <h2 className="text-lg font-bold text-[#1c1b1b]">
+                Latency Summary
+              </h2>
+              <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <MetricRow
+                  label="Average"
+                  value={`${metrics.api.requestMetrics.averageDurationMs} ms`}
+                  icon={Clock3}
+                />
+                <MetricRow
+                  label="p50"
+                  value={`${metrics.api.requestMetrics.p50DurationMs} ms`}
+                  icon={Clock3}
+                />
+                <MetricRow
+                  label="p95"
+                  value={`${metrics.api.requestMetrics.p95DurationMs} ms`}
+                  icon={Clock3}
+                />
+                <MetricRow
+                  label="Max"
+                  value={`${metrics.api.requestMetrics.maxDurationMs} ms`}
+                  icon={Clock3}
+                />
+              </div>
+            </div>
+          </section>
 
           {azureMetrics?.series && (
             <section className="grid gap-5 xl:grid-cols-3">
@@ -348,6 +594,8 @@ export function SystemPage() {
                 points={toNumberSeries(azureMetrics.series.cpuPercent)}
                 color="#1c1b1b"
                 suffix="%"
+                yLabel="%"
+                xLabel="last 15 minutes"
                 formatter={(value) => `${value.toFixed(1)}%`}
               />
               <ChartCard
@@ -358,6 +606,8 @@ export function SystemPage() {
                 )}
                 color="#059669"
                 suffix="%"
+                yLabel="%"
+                xLabel="last 15 minutes"
                 formatter={(value) => `${value.toFixed(1)}%`}
               />
               <ChartCard
@@ -366,6 +616,8 @@ export function SystemPage() {
                 points={toNumberSeries(azureMetrics.series.networkOutBytes)}
                 color="#2563eb"
                 suffix=""
+                yLabel="bytes"
+                xLabel="last 15 minutes"
                 formatter={formatBytes}
               />
             </section>
@@ -577,6 +829,21 @@ export function SystemPage() {
             )}
           </section>
 
+          <section className="grid gap-5 xl:grid-cols-2">
+            <EndpointTable
+              title="Slow Endpoints"
+              helper="Highest average latency in the current window."
+              endpoints={metrics.api.requestMetrics.slowEndpoints}
+              emptyText="No endpoint traffic yet."
+            />
+            <EndpointTable
+              title="Top Error Endpoints"
+              helper="Endpoints with the most HTTP 5xx responses."
+              endpoints={metrics.api.requestMetrics.topErrorEndpoints}
+              emptyText="No server errors recorded."
+            />
+          </section>
+
           <section className="grid gap-5 xl:grid-cols-3">
             <ChartCard
               title="Request Volume"
@@ -586,6 +853,8 @@ export function SystemPage() {
               )}
               color="#1c1b1b"
               suffix=""
+              yLabel="req"
+              xLabel="last 15 minutes"
             />
             <ChartCard
               title="Server Errors"
@@ -595,6 +864,8 @@ export function SystemPage() {
               )}
               color="#dc2626"
               suffix=""
+              yLabel="errors"
+              xLabel="last 15 minutes"
             />
             <ChartCard
               title="Response Time"
@@ -604,6 +875,8 @@ export function SystemPage() {
               )}
               color="#2563eb"
               suffix=" ms"
+              yLabel="ms"
+              xLabel="last 15 minutes"
             />
           </section>
 
@@ -702,12 +975,163 @@ function MetricRow({
   );
 }
 
+function StatusPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-white/70 bg-white/70 px-4 py-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-[#747878]">
+        {label}
+      </p>
+      <p className="mt-1 text-lg text-[#1c1b1b]">{value}</p>
+    </div>
+  );
+}
+
+function StatusBreakdownBar({
+  breakdown,
+}: {
+  breakdown: {
+    success: number;
+    redirect: number;
+    clientError: number;
+    serverError: number;
+  };
+}) {
+  const total =
+    breakdown.success +
+    breakdown.redirect +
+    breakdown.clientError +
+    breakdown.serverError;
+  const segments = [
+    {
+      label: "2xx",
+      value: breakdown.success,
+      color: "#059669",
+    },
+    {
+      label: "3xx",
+      value: breakdown.redirect,
+      color: "#2563eb",
+    },
+    {
+      label: "4xx",
+      value: breakdown.clientError,
+      color: "#d97706",
+    },
+    {
+      label: "5xx",
+      value: breakdown.serverError,
+      color: "#dc2626",
+    },
+  ];
+
+  return (
+    <div className="mt-5">
+      <div className="flex h-8 overflow-hidden border border-[#d8d4d2] bg-[#f7f3f2]">
+        {segments.map((segment) => {
+          const width = total === 0 ? 0 : (segment.value / total) * 100;
+
+          return (
+            <div
+              key={segment.label}
+              style={{
+                width: `${width}%`,
+                backgroundColor: segment.color,
+              }}
+            />
+          );
+        })}
+        {total === 0 && <div className="h-full w-full bg-[#eee9e8]" />}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {segments.map((segment) => (
+          <div key={segment.label} className="flex items-center gap-2 text-sm">
+            <span
+              className="h-3 w-3 shrink-0"
+              style={{ backgroundColor: segment.color }}
+            />
+            <span className="font-bold text-[#1c1b1b]">{segment.label}</span>
+            <span className="font-semibold text-[#747878]">
+              {segment.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EndpointTable({
+  title,
+  helper,
+  endpoints,
+  emptyText,
+}: {
+  title: string;
+  helper: string;
+  endpoints: EndpointSummary[];
+  emptyText: string;
+}) {
+  return (
+    <section className="border border-[#d8d4d2] bg-white p-5">
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-[#1c1b1b]">{title}</h2>
+        <p className="mt-1 text-sm text-[#747878]">{helper}</p>
+      </div>
+
+      {endpoints.length === 0 ? (
+        <div className="bg-[#f7f3f2] p-4 text-sm font-semibold text-[#747878]">
+          {emptyText}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left">
+            <thead>
+              <tr className="border-b border-[#eee9e8] text-xs font-bold uppercase tracking-[0.16em] text-[#747878]">
+                <th className="py-3 pr-4">Endpoint</th>
+                <th className="py-3 pr-4">Avg</th>
+                <th className="py-3 pr-4">Max</th>
+                <th className="py-3 pr-4">Req</th>
+                <th className="py-3">5xx</th>
+              </tr>
+            </thead>
+            <tbody>
+              {endpoints.map((endpoint) => (
+                <tr
+                  key={`${endpoint.method}-${endpoint.path}`}
+                  className="border-b border-[#f1edec] text-sm font-semibold last:border-0"
+                >
+                  <td className="max-w-[340px] truncate py-3 pr-4 text-[#1c1b1b]">
+                    {endpoint.method} {endpoint.path}
+                  </td>
+                  <td className="py-3 pr-4 text-[#444748]">
+                    {endpoint.averageDurationMs} ms
+                  </td>
+                  <td className="py-3 pr-4 text-[#444748]">
+                    {endpoint.maxDurationMs} ms
+                  </td>
+                  <td className="py-3 pr-4 text-[#444748]">
+                    {endpoint.requestCount}
+                  </td>
+                  <td className="py-3 text-[#444748]">{endpoint.errorCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ChartCard({
   title,
   helper,
   points,
   color,
   suffix,
+  yLabel,
+  xLabel,
   formatter,
 }: {
   title: string;
@@ -715,58 +1139,172 @@ function ChartCard({
   points: number[];
   color: string;
   suffix: string;
+  yLabel: string;
+  xLabel: string;
   formatter?: (value: number) => string;
 }) {
   const max = Math.max(...points, 1);
-  const width = 320;
-  const height = 120;
+  const min = Math.min(...points, 0);
+  const range = Math.max(max - min, 1);
+  const width = 360;
+  const height = 190;
+  const padding = {
+    top: 18,
+    right: 18,
+    bottom: 42,
+    left: 58,
+  };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
   const chartPoints = points.map((point, index) => {
-    const x = points.length === 1 ? 0 : (index / (points.length - 1)) * width;
-    const y = height - (point / max) * height;
+    const x =
+      padding.left +
+      (points.length === 1 ? 0 : (index / (points.length - 1)) * chartWidth);
+    const y = padding.top + chartHeight - ((point - min) / range) * chartHeight;
 
     return `${x},${y}`;
   });
   const latest = points.at(-1) ?? 0;
   const formattedLatest = formatter ? formatter(latest) : `${latest}${suffix}`;
+  const formatAxisValue = (value: number) => {
+    if (formatter) {
+      return formatter(value);
+    }
+
+    return `${Math.round(value)}${suffix}`;
+  };
+  const yTicks = [max, min + range / 2, min];
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
+    <div className="border border-[#d8d4d2] bg-white p-5">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-[#1c1b1b]">{title}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-[#1c1b1b]">{title}</h2>
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#2563eb] text-xs font-bold text-[#2563eb]">
+              i
+            </span>
+          </div>
           <p className="mt-1 text-sm text-[#747878]">{helper}</p>
-        </div>
-        <div className="rounded-full bg-[#f7f3f2] px-3 py-1 text-sm font-bold text-[#1c1b1b]">
-          {formattedLatest}
         </div>
       </div>
 
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-32 w-full overflow-visible"
+        className="h-56 w-full overflow-visible"
         role="img"
         aria-label={title}
       >
-        {[0, 1, 2].map((line) => (
-          <line
-            key={line}
-            x1="0"
-            x2={width}
-            y1={(height / 2) * line}
-            y2={(height / 2) * line}
-            stroke="#eee9e8"
-            strokeWidth="1"
-          />
-        ))}
+        <text
+          x={padding.left}
+          y="10"
+          fill="#747878"
+          fontSize="10"
+          fontWeight="700"
+        >
+          {yLabel}
+        </text>
+        {yTicks.map((tick) => {
+          const y = padding.top + chartHeight - ((tick - min) / range) * chartHeight;
+
+          return (
+            <g key={tick}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                stroke="#d6d3d1"
+                strokeWidth="1"
+              />
+              <text
+                x={padding.left - 8}
+                y={y + 4}
+                fill="#747878"
+                fontSize="10"
+                textAnchor="end"
+              >
+                {formatAxisValue(tick)}
+              </text>
+            </g>
+          );
+        })}
+        <line
+          x1={padding.left}
+          x2={padding.left}
+          y1={padding.top}
+          y2={height - padding.bottom}
+          stroke="#c2bfbd"
+          strokeWidth="1"
+        />
+        <line
+          x1={padding.left}
+          x2={width - padding.right}
+          y1={height - padding.bottom}
+          y2={height - padding.bottom}
+          stroke="#c2bfbd"
+          strokeWidth="1"
+        />
         <polyline
           fill="none"
           points={chartPoints.join(" ")}
           stroke={color}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth="4"
+          strokeWidth="3"
         />
+        {chartPoints.map((point, index) => {
+          const [x, y] = point.split(',');
+
+          return (
+            <circle
+              key={`${point}-${index}`}
+              cx={x}
+              cy={y}
+              r="2"
+              fill="#ffffff"
+              stroke={color}
+              strokeWidth="1.5"
+            />
+          );
+        })}
+        <text
+          x={padding.left}
+          y={height - padding.bottom + 22}
+          fill="#747878"
+          fontSize="10"
+        >
+          start
+        </text>
+        <text
+          x={width - padding.right}
+          y={height - padding.bottom + 22}
+          fill="#747878"
+          fontSize="10"
+          textAnchor="end"
+        >
+          now
+        </text>
+        <text
+          x={padding.left}
+          y={height - 6}
+          fill="#747878"
+          fontSize="10"
+          fontWeight="700"
+        >
+          {xLabel}
+        </text>
       </svg>
+
+      <div className="mt-3 flex items-end gap-3 border-t border-[#eee9e8] pt-4">
+        <div className="h-12 w-1.5 shrink-0" style={{ backgroundColor: color }} />
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-[#444748]">{title}</p>
+          <p className="mt-1 text-2xl font-bold leading-none text-[#1c1b1b]">
+            {formattedLatest}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
