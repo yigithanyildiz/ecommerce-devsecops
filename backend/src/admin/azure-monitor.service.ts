@@ -9,6 +9,7 @@ type MetricName =
   | 'Network Out Total';
 
 type AzureMetricValue = {
+  timeStamp?: string;
   average?: number;
   total?: number;
 };
@@ -99,26 +100,50 @@ export class AzureMonitorService {
   }
 
   private toMetricSummary(data: AzureMetricResponse) {
-    const findMetric = (name: MetricName) => {
+    const buildSeries = (name: MetricName, aggregation: 'average' | 'total') => {
       const metric = data.value?.find((item) => item.name?.value === name);
       const points = metric?.timeseries?.flatMap((series) => series.data ?? []);
 
-      return points
-        ?.slice()
-        .reverse()
-        .find((point) => point.average !== undefined || point.total !== undefined);
+      return (
+        points
+          ?.filter((point) => point.timeStamp)
+          .map((point) => ({
+            timestamp: point.timeStamp as string,
+            value: this.round(point[aggregation]),
+          }))
+          .filter((point) => point.value !== null) ?? []
+      );
     };
 
+    const latest = (series: Array<{ value: number | null }>) => {
+      return series.at(-1)?.value ?? null;
+    };
+
+    const cpuPercentSeries = buildSeries('Percentage CPU', 'average');
+    const availableMemoryBytesSeries = buildSeries(
+      'Available Memory Bytes',
+      'average',
+    );
+    const availableMemoryPercentSeries = buildSeries(
+      'Available Memory Percentage',
+      'average',
+    );
+    const networkInBytesSeries = buildSeries('Network In Total', 'total');
+    const networkOutBytesSeries = buildSeries('Network Out Total', 'total');
+
     return {
-      cpuPercent: this.round(findMetric('Percentage CPU')?.average),
-      availableMemoryBytes: this.round(
-        findMetric('Available Memory Bytes')?.average,
-      ),
-      availableMemoryPercent: this.round(
-        findMetric('Available Memory Percentage')?.average,
-      ),
-      networkInBytes: this.round(findMetric('Network In Total')?.total),
-      networkOutBytes: this.round(findMetric('Network Out Total')?.total),
+      cpuPercent: latest(cpuPercentSeries),
+      availableMemoryBytes: latest(availableMemoryBytesSeries),
+      availableMemoryPercent: latest(availableMemoryPercentSeries),
+      networkInBytes: latest(networkInBytesSeries),
+      networkOutBytes: latest(networkOutBytesSeries),
+      series: {
+        cpuPercent: cpuPercentSeries,
+        availableMemoryBytes: availableMemoryBytesSeries,
+        availableMemoryPercent: availableMemoryPercentSeries,
+        networkInBytes: networkInBytesSeries,
+        networkOutBytes: networkOutBytesSeries,
+      },
     };
   }
 
