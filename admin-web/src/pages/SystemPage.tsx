@@ -38,8 +38,9 @@ type SystemMetrics = {
         database: string;
       };
       latencyMs: {
-        database: number;
+        database: number | null;
       };
+      error?: string;
     };
     requestMetrics: {
       windowMinutes: number;
@@ -101,12 +102,20 @@ type SystemMetrics = {
           availableMemoryPercent: number | null;
           networkInBytes: number | null;
           networkOutBytes: number | null;
+          diskReadBytes: number | null;
+          diskWriteBytes: number | null;
+          diskReadOperationsPerSecond: number | null;
+          diskWriteOperationsPerSecond: number | null;
           series: {
             cpuPercent: MetricPoint[];
             availableMemoryBytes: MetricPoint[];
             availableMemoryPercent: MetricPoint[];
             networkInBytes: MetricPoint[];
             networkOutBytes: MetricPoint[];
+            diskReadBytes: MetricPoint[];
+            diskWriteBytes: MetricPoint[];
+            diskReadOperationsPerSecond: MetricPoint[];
+            diskWriteOperationsPerSecond: MetricPoint[];
           };
         };
       }
@@ -393,7 +402,11 @@ export function SystemPage() {
               title="Database"
               value={metrics.api.health.checks.database.toUpperCase()}
               icon={Database}
-              helper={`${metrics.api.health.latencyMs.database} ms latency`}
+              helper={
+                metrics.api.health.latencyMs.database === null
+                  ? "N/A latency"
+                  : `${metrics.api.health.latencyMs.database} ms latency`
+              }
             />
             <StatCard
               title="CPU"
@@ -420,17 +433,17 @@ export function SystemPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard
+            <HealthScoreCard
               title="API Score"
-              value={`${metrics.api.healthScore.api.scorePercent}%`}
               icon={Activity}
-              helper={`${metrics.api.healthScore.api.successfulChecks}/${metrics.api.healthScore.api.totalChecks} checks`}
+              score={metrics.api.healthScore.api}
+              windowSeconds={metrics.api.healthScore.windowSeconds}
             />
-            <StatCard
+            <HealthScoreCard
               title="DB Score"
-              value={`${metrics.api.healthScore.database.scorePercent}%`}
               icon={Database}
-              helper={`${metrics.api.healthScore.database.successfulChecks}/${metrics.api.healthScore.database.totalChecks} checks`}
+              score={metrics.api.healthScore.database}
+              windowSeconds={metrics.api.healthScore.windowSeconds}
             />
             <StatCard
               title="Uptime"
@@ -510,6 +523,7 @@ export function SystemPage() {
             <ChartCard
               title="API Health Score"
               helper={`Last ${metrics.api.healthScore.windowSeconds} one-second checks`}
+              info={`Shows whether the backend process is alive during the latest one-second probes. Successful checks: ${metrics.api.healthScore.api.successfulChecks}/${metrics.api.healthScore.api.totalChecks}. A stable 100% means the API process kept responding throughout the current short window.`}
               points={metrics.api.healthScore.probes.map((probe) =>
                 probe.api ? 100 : 0,
               )}
@@ -517,11 +531,14 @@ export function SystemPage() {
               suffix="%"
               yLabel="success"
               xLabel="last 15 seconds"
+              displayValue={`${metrics.api.healthScore.api.scorePercent}%`}
+              sampleLabel={`${metrics.api.healthScore.api.successfulChecks}/${metrics.api.healthScore.api.totalChecks} successful`}
               formatter={(value) => `${value.toFixed(0)}%`}
             />
             <ChartCard
               title="Database Health Score"
               helper={`Last ${metrics.api.healthScore.windowSeconds} one-second checks`}
+              info={`Shows how many recent database probes succeeded. Successful checks: ${metrics.api.healthScore.database.successfulChecks}/${metrics.api.healthScore.database.totalChecks}. If PostgreSQL is stopped or unreachable, this score drops quickly and the overall system status becomes critical.`}
               points={metrics.api.healthScore.probes.map((probe) =>
                 probe.database ? 100 : 0,
               )}
@@ -529,18 +546,27 @@ export function SystemPage() {
               suffix="%"
               yLabel="success"
               xLabel="last 15 seconds"
+              displayValue={`${metrics.api.healthScore.database.scorePercent}%`}
+              sampleLabel={`${metrics.api.healthScore.database.successfulChecks}/${metrics.api.healthScore.database.totalChecks} successful`}
               formatter={(value) => `${value.toFixed(0)}%`}
             />
             <ChartCard
               title="Database Probe Latency"
               helper="One-second database probe latency"
+              info="Measures how long the lightweight SELECT 1 database probe takes. Rising values can indicate database pressure, network delay, or container resource contention."
               points={metrics.api.healthScore.probes.map(
-                (probe) => probe.databaseLatencyMs ?? 0,
+                (probe) => probe.databaseLatencyMs,
               )}
               color="#7c3aed"
               suffix=" ms"
               yLabel="ms"
               xLabel="last 15 seconds"
+              displayValue={
+                metrics.api.healthScore.probes.at(-1)?.databaseLatencyMs === null
+                  ? "N/A"
+                  : `${metrics.api.healthScore.probes.at(-1)?.databaseLatencyMs ?? 0} ms`
+              }
+              sampleLabel={`${metrics.api.healthScore.database.totalChecks} checks`}
             />
           </section>
 
@@ -591,6 +617,7 @@ export function SystemPage() {
               <ChartCard
                 title="CPU Trend"
                 helper="Azure CPU average"
+                info="Shows Azure Monitor's average VM CPU utilization over the latest 15-minute window. Short spikes are normal; sustained high CPU can signal capacity pressure."
                 points={toNumberSeries(azureMetrics.series.cpuPercent)}
                 color="#1c1b1b"
                 suffix="%"
@@ -601,6 +628,7 @@ export function SystemPage() {
               <ChartCard
                 title="Memory Trend"
                 helper="Available memory percentage"
+                info="Shows the VM's available memory percentage from Azure Monitor. Lower values mean the server has less free memory for the API, database, and system processes."
                 points={toNumberSeries(
                   azureMetrics.series.availableMemoryPercent,
                 )}
@@ -613,12 +641,52 @@ export function SystemPage() {
               <ChartCard
                 title="Network Out"
                 helper="Azure outbound traffic"
+                info="Shows outbound network traffic reported by Azure Monitor. Spikes usually mean API responses, admin usage, mobile app traffic, deployments, or package downloads."
                 points={toNumberSeries(azureMetrics.series.networkOutBytes)}
                 color="#2563eb"
                 suffix=""
                 yLabel="bytes"
                 xLabel="last 15 minutes"
                 formatter={formatBytes}
+              />
+            </section>
+          )}
+
+          {azureMetrics?.series && (
+            <section className="grid gap-5 xl:grid-cols-3">
+              <ChartCard
+                title="Disk Read Bytes"
+                helper="Azure disk read throughput"
+                info="Shows how many bytes the VM read from disk during each Azure Monitor interval. Spikes can indicate database reads, backups, application startup, or package operations."
+                points={toNumberSeries(azureMetrics.series.diskReadBytes)}
+                color="#6366f1"
+                suffix=""
+                yLabel="bytes"
+                xLabel="last 15 minutes"
+                formatter={formatBytes}
+              />
+              <ChartCard
+                title="Disk Write Bytes"
+                helper="Azure disk write throughput"
+                info="Shows how many bytes the VM wrote to disk during each Azure Monitor interval. Spikes can come from database writes, backup generation, logs, or deployments."
+                points={toNumberSeries(azureMetrics.series.diskWriteBytes)}
+                color="#db2777"
+                suffix=""
+                yLabel="bytes"
+                xLabel="last 15 minutes"
+                formatter={formatBytes}
+              />
+              <ChartCard
+                title="Disk Operations"
+                helper="Read/write operations per second"
+                info="Shows average disk read and write operations per second from Azure Monitor. High sustained operations can signal storage pressure or database-heavy activity."
+                points={toNumberSeries(
+                  azureMetrics.series.diskWriteOperationsPerSecond,
+                )}
+                color="#0f766e"
+                suffix="/s"
+                yLabel="ops/s"
+                xLabel="last 15 minutes"
               />
             </section>
           )}
@@ -699,6 +767,26 @@ export function SystemPage() {
                     label="Network Out"
                     value={formatBytes(metrics.azure.metrics.networkOutBytes)}
                     icon={Wifi}
+                  />
+                  <MetricRow
+                    label="Disk Read"
+                    value={formatBytes(metrics.azure.metrics.diskReadBytes)}
+                    icon={HardDrive}
+                  />
+                  <MetricRow
+                    label="Disk Write"
+                    value={formatBytes(metrics.azure.metrics.diskWriteBytes)}
+                    icon={HardDrive}
+                  />
+                  <MetricRow
+                    label="Disk Read Ops"
+                    value={`${metrics.azure.metrics.diskReadOperationsPerSecond ?? "N/A"}/s`}
+                    icon={HardDrive}
+                  />
+                  <MetricRow
+                    label="Disk Write Ops"
+                    value={`${metrics.azure.metrics.diskWriteOperationsPerSecond ?? "N/A"}/s`}
+                    icon={HardDrive}
                   />
                   <MetricRow
                     label="Azure Checked At"
@@ -848,6 +936,7 @@ export function SystemPage() {
             <ChartCard
               title="Request Volume"
               helper="Requests per minute"
+              info="Counts API requests grouped by minute for the current 15-minute window. It helps reveal traffic bursts, admin activity, mobile app usage, and smoke test runs."
               points={metrics.api.requestMetrics.requestsPerMinute.map(
                 (point) => point.requestCount,
               )}
@@ -859,6 +948,7 @@ export function SystemPage() {
             <ChartCard
               title="Server Errors"
               helper="5xx responses per minute"
+              info="Counts server-side failures per minute. Any non-zero value deserves attention because it means the backend returned an internal error to a client."
               points={metrics.api.requestMetrics.requestsPerMinute.map(
                 (point) => point.errorCount,
               )}
@@ -870,6 +960,7 @@ export function SystemPage() {
             <ChartCard
               title="Response Time"
               helper="Average latency per minute"
+              info="Shows average backend response time per minute. Higher latency can point to slow database queries, infrastructure load, or endpoints that need optimization."
               points={metrics.api.requestMetrics.requestsPerMinute.map(
                 (point) => point.averageDurationMs,
               )}
@@ -970,6 +1061,60 @@ function MetricRow({
         <p className="mt-1 truncate text-sm font-bold text-[#1c1b1b]">
           {value}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function HealthScoreCard({
+  title,
+  score,
+  windowSeconds,
+  icon: Icon,
+}: {
+  title: string;
+  score: HealthScore;
+  windowSeconds: number;
+  icon: LucideIcon;
+}) {
+  const color =
+    score.scorePercent >= 100
+      ? "#059669"
+      : score.scorePercent >= 90
+        ? "#d97706"
+        : "#dc2626";
+
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-[0_8px_28px_rgba(26,26,26,0.05)]">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-5 text-[#444748]">
+            {title}
+          </p>
+          <p className="mt-2 whitespace-nowrap text-2xl font-bold leading-tight text-[#1c1b1b]">
+            {score.scorePercent}%
+          </p>
+          <p className="mt-1 text-xs font-bold text-[#444748]">
+            {score.successfulChecks}/{score.totalChecks} successful
+          </p>
+          <p className="mt-1 text-xs leading-5 text-[#747878]">
+            Last {windowSeconds} seconds
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f7f3f2] text-[#1c1b1b]">
+          <Icon size={20} />
+        </div>
+      </div>
+
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#eee9e8]">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${score.scorePercent}%`,
+            backgroundColor: color,
+          }}
+        />
       </div>
     </div>
   );
@@ -1127,24 +1272,31 @@ function EndpointTable({
 function ChartCard({
   title,
   helper,
+  info,
   points,
   color,
   suffix,
   yLabel,
   xLabel,
+  displayValue,
+  sampleLabel,
   formatter,
 }: {
   title: string;
   helper: string;
-  points: number[];
+  info: string;
+  points: Array<number | null>;
   color: string;
   suffix: string;
   yLabel: string;
   xLabel: string;
+  displayValue?: string;
+  sampleLabel?: string;
   formatter?: (value: number) => string;
 }) {
-  const max = Math.max(...points, 1);
-  const min = Math.min(...points, 0);
+  const numericPoints = points.filter((point): point is number => point !== null);
+  const max = Math.max(...numericPoints, 1);
+  const min = Math.min(...numericPoints, 0);
   const range = Math.max(max - min, 1);
   const width = 360;
   const height = 190;
@@ -1157,6 +1309,10 @@ function ChartCard({
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const chartPoints = points.map((point, index) => {
+    if (point === null) {
+      return null;
+    }
+
     const x =
       padding.left +
       (points.length === 1 ? 0 : (index / (points.length - 1)) * chartWidth);
@@ -1164,8 +1320,9 @@ function ChartCard({
 
     return `${x},${y}`;
   });
-  const latest = points.at(-1) ?? 0;
-  const formattedLatest = formatter ? formatter(latest) : `${latest}${suffix}`;
+  const latest = numericPoints.at(-1) ?? 0;
+  const formattedLatest =
+    displayValue ?? (formatter ? formatter(latest) : `${latest}${suffix}`);
   const formatAxisValue = (value: number) => {
     if (formatter) {
       return formatter(value);
@@ -1174,6 +1331,22 @@ function ChartCard({
     return `${Math.round(value)}${suffix}`;
   };
   const yTicks = [max, min + range / 2, min];
+  const chartSegments = chartPoints.reduce<string[][]>((segments, point) => {
+    if (point === null) {
+      if (segments.at(-1)?.length) {
+        segments.push([]);
+      }
+
+      return segments;
+    }
+
+    if (segments.length === 0) {
+      segments.push([]);
+    }
+
+    segments[segments.length - 1].push(point);
+    return segments;
+  }, []);
 
   return (
     <div className="border border-[#d8d4d2] bg-white p-5">
@@ -1181,9 +1354,22 @@ function ChartCard({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-bold text-[#1c1b1b]">{title}</h2>
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#2563eb] text-xs font-bold text-[#2563eb]">
-              i
-            </span>
+            <div className="group relative inline-flex">
+              <button
+                type="button"
+                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#2563eb] text-xs font-bold text-[#2563eb] outline-none transition hover:bg-blue-50 focus:bg-blue-50"
+                aria-label={`${title} metric information`}
+              >
+                i
+              </button>
+              <div className="pointer-events-none absolute left-1/2 top-7 z-30 w-72 -translate-x-1/2 border border-[#d8d4d2] bg-white p-3 text-sm font-semibold leading-5 text-[#444748] opacity-0 shadow-[0_10px_28px_rgba(26,26,26,0.12)] transition group-hover:opacity-100 group-focus-within:opacity-100">
+                <p className="font-bold text-[#1c1b1b]">{title}</p>
+                <p className="mt-1">{info}</p>
+                <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-[#747878]">
+                  Y axis: {yLabel} / X axis: {xLabel}
+                </p>
+              </div>
+            </div>
           </div>
           <p className="mt-1 text-sm text-[#747878]">{helper}</p>
         </div>
@@ -1245,15 +1431,22 @@ function ChartCard({
           stroke="#c2bfbd"
           strokeWidth="1"
         />
-        <polyline
-          fill="none"
-          points={chartPoints.join(" ")}
-          stroke={color}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="3"
-        />
+        {chartSegments.map((segment, index) => (
+          <polyline
+            key={`${title}-${index}`}
+            fill="none"
+            points={segment.join(" ")}
+            stroke={color}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3"
+          />
+        ))}
         {chartPoints.map((point, index) => {
+          if (point === null) {
+            return null;
+          }
+
           const [x, y] = point.split(',');
 
           return (
@@ -1303,6 +1496,11 @@ function ChartCard({
           <p className="mt-1 text-2xl font-bold leading-none text-[#1c1b1b]">
             {formattedLatest}
           </p>
+          {sampleLabel && (
+            <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-[#747878]">
+              {sampleLabel}
+            </p>
+          )}
         </div>
       </div>
     </div>

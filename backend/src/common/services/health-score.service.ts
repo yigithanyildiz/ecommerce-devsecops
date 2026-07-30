@@ -8,7 +8,7 @@ type HealthProbe = {
   databaseLatencyMs: number | null;
 };
 
-const probeLimit = 15;
+const probeLimit = 60;
 const probeIntervalMs = 1000;
 
 @Injectable()
