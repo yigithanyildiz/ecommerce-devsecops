@@ -6,6 +6,7 @@ POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
 POSTGRES_USER="${POSTGRES_USER:-ecommerce}"
 POSTGRES_DB="${POSTGRES_DB:-ecommerce_prod}"
 BACKUP_DIR="${BACKUP_DIR:-backups/prod}"
+RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date -u +"%Y%m%d_%H%M%S")"
 BACKUP_FILE="${BACKUP_DIR}/${POSTGRES_DB}_${TIMESTAMP}.sql"
 
@@ -21,3 +22,7 @@ fi
 
 printf "Database backup created: %s\n" "$BACKUP_FILE"
 ls -lh "$BACKUP_FILE"
+
+if [[ "$RETENTION_DAYS" =~ ^[0-9]+$ ]] && [[ "$RETENTION_DAYS" -gt 0 ]]; then
+  find "$BACKUP_DIR" -type f -name "${POSTGRES_DB}_*.sql" -mtime +"$RETENTION_DAYS" -print -delete
+fi

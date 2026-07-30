@@ -24,6 +24,29 @@ Verify the file is not empty:
 ls -lh backups/prod/*.sql
 ```
 
+By default, backups older than 14 days are deleted after a successful backup.
+Override retention when needed:
+
+```bash
+RETENTION_DAYS=30 ./scripts/backup-prod-db.sh
+```
+
+## Schedule Daily Production Backups
+
+Run on the VM:
+
+```bash
+crontab -e
+```
+
+Add:
+
+```cron
+0 3 * * * cd /opt/ecommerce/app && ./scripts/backup-prod-db.sh >> /opt/ecommerce/app/backups/prod/backup.log 2>&1
+```
+
+This runs every day at 03:00 VM time and keeps the latest 14 days by default.
+
 ## Restore A Production Backup
 
 Restore is destructive. It drops and recreates the `public` schema before loading

@@ -14,7 +14,9 @@ Semgrep runs as a static application security testing step during pull request v
 
 ### Dependency Audit
 
-`npm audit --audit-level=high` runs during backend validation to detect high severity vulnerable dependencies.
+`npm audit --audit-level=high` runs during backend and admin web validation to detect high and critical severity vulnerable npm dependencies.
+
+The audit gate is enforced in pull request validation, TEST deployment, and PROD deployment workflows. Low and moderate findings remain visible in audit output and Dependabot alerts, but they do not fail the pipeline under the current policy.
 
 ## Runtime Security
 
